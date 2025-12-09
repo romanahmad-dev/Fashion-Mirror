@@ -32,7 +32,7 @@ class VirtualTryOnAPI:
         }
     }
     
-    def __init__(self, api_key: str, provider: str = "FASHN API", custom_url: str = None):
+    def __init__(self, api_key: str, provider: str = "FASHN API", custom_url: Optional[str] = None):
         """
         Initialize the API handler.
         

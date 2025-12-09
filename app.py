@@ -2,6 +2,7 @@ import streamlit as st
 from PIL import Image
 import io
 import base64
+from datetime import datetime
 from utils.api_handler import VirtualTryOnAPI
 from utils.image_utils import resize_image, image_to_base64, validate_image
 
@@ -54,6 +55,25 @@ st.markdown("""
         border-left: 4px solid #2196f3;
         margin: 1rem 0;
     }
+    .history-section {
+        background-color: #f5f5f5;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-top: 1rem;
+    }
+    .history-item {
+        background: white;
+        padding: 0.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 0.5rem;
+    }
+    .comparison-view {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-top: 1rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -69,6 +89,10 @@ if 'result_image' not in st.session_state:
     st.session_state.result_image = None
 if 'processing' not in st.session_state:
     st.session_state.processing = False
+if 'tryon_history' not in st.session_state:
+    st.session_state.tryon_history = []
+if 'selected_history_index' not in st.session_state:
+    st.session_state.selected_history_index = None
 
 with st.sidebar:
     st.header("⚙️ Configuration")
@@ -238,7 +262,25 @@ if generate_btn:
                 result = api.generate_tryon(person_resized, clothing_resized)
                 
                 if result['success']:
-                    st.session_state.result_image = result['image']
+                    result_img = result['image']
+                    if isinstance(result_img, str):
+                        from utils.image_utils import base64_to_image
+                        result_img = base64_to_image(result_img)
+                    if hasattr(result_img, 'copy'):
+                        result_img_copy = result_img.copy()
+                    else:
+                        result_img_copy = result_img
+                    
+                    st.session_state.result_image = result_img
+                    history_entry = {
+                        'timestamp': datetime.now().strftime("%I:%M %p"),
+                        'person_image': st.session_state.person_image.copy(),
+                        'clothing_image': st.session_state.clothing_image.copy(),
+                        'result_image': result_img_copy
+                    }
+                    st.session_state.tryon_history.insert(0, history_entry)
+                    if len(st.session_state.tryon_history) > 10:
+                        st.session_state.tryon_history = st.session_state.tryon_history[:10]
                     st.success("Virtual try-on generated successfully!")
                 else:
                     st.error(f"Error: {result['error']}")
@@ -266,6 +308,66 @@ if st.session_state.result_image is not None:
             )
     
     st.markdown('</div>', unsafe_allow_html=True)
+
+if st.session_state.tryon_history:
+    st.divider()
+    st.subheader("📜 Try-On History")
+    st.caption(f"You have tried {len(st.session_state.tryon_history)} clothing item(s) this session")
+    
+    history_cols = st.columns(min(len(st.session_state.tryon_history), 5))
+    
+    for idx, entry in enumerate(st.session_state.tryon_history[:5]):
+        with history_cols[idx]:
+            st.image(entry['result_image'], caption=f"#{idx+1} - {entry['timestamp']}", use_container_width=True)
+            if st.button(f"View", key=f"view_history_{idx}"):
+                st.session_state.selected_history_index = idx
+    
+    if len(st.session_state.tryon_history) > 5:
+        with st.expander(f"View more ({len(st.session_state.tryon_history) - 5} more items)"):
+            more_cols = st.columns(min(len(st.session_state.tryon_history) - 5, 5))
+            for idx, entry in enumerate(st.session_state.tryon_history[5:10]):
+                actual_idx = idx + 5
+                with more_cols[idx]:
+                    st.image(entry['result_image'], caption=f"#{actual_idx+1} - {entry['timestamp']}", use_container_width=True)
+                    if st.button(f"View", key=f"view_history_{actual_idx}"):
+                        st.session_state.selected_history_index = actual_idx
+    
+    if st.session_state.selected_history_index is not None:
+        selected = st.session_state.tryon_history[st.session_state.selected_history_index]
+        st.markdown('<div class="comparison-view">', unsafe_allow_html=True)
+        st.subheader(f"Viewing Try-On #{st.session_state.selected_history_index + 1}")
+        
+        comp_col1, comp_col2, comp_col3 = st.columns(3)
+        with comp_col1:
+            st.image(selected['person_image'], caption="Person", use_container_width=True)
+        with comp_col2:
+            st.image(selected['clothing_image'], caption="Clothing", use_container_width=True)
+        with comp_col3:
+            st.image(selected['result_image'], caption="Result", use_container_width=True)
+            if isinstance(selected['result_image'], Image.Image):
+                buf = io.BytesIO()
+                selected['result_image'].save(buf, format='PNG')
+                st.download_button(
+                    label="📥 Download",
+                    data=buf.getvalue(),
+                    file_name=f"fashion_mirror_result_{st.session_state.selected_history_index + 1}.png",
+                    mime="image/png",
+                    use_container_width=True,
+                    key=f"download_history_{st.session_state.selected_history_index}"
+                )
+        
+        if st.button("Close View", key="close_history_view"):
+            st.session_state.selected_history_index = None
+            st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    col_clear1, col_clear2, col_clear3 = st.columns([1, 1, 1])
+    with col_clear2:
+        if st.button("🗑️ Clear History", use_container_width=True):
+            st.session_state.tryon_history = []
+            st.session_state.selected_history_index = None
+            st.rerun()
 
 st.divider()
 
