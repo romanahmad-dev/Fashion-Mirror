@@ -7,6 +7,93 @@ import io
 import base64
 
 
+def remove_background(image: Image.Image) -> Image.Image:
+    """
+    Remove background from an image using rembg.
+    
+    Args:
+        image: PIL Image object
+    
+    Returns:
+        PIL Image with transparent background
+    """
+    from rembg import remove
+    
+    img_byte_arr = io.BytesIO()
+    image.save(img_byte_arr, format='PNG')
+    img_byte_arr.seek(0)
+    
+    result_bytes = remove(img_byte_arr.getvalue())
+    
+    result_buffer = io.BytesIO(result_bytes)
+    result_image = Image.open(result_buffer)
+    result_image.load()
+    result_copy = result_image.copy()
+    result_buffer.close()
+    
+    return result_copy
+
+
+def auto_crop_image(image: Image.Image, padding: int = 10) -> Image.Image:
+    """
+    Auto-crop an image to remove excess whitespace/transparent areas around the subject.
+    
+    Args:
+        image: PIL Image object
+        padding: Padding to add around the cropped area (in pixels)
+    
+    Returns:
+        Cropped PIL Image
+    """
+    if image.mode == 'RGBA':
+        alpha = image.split()[3]
+        bbox = alpha.getbbox()
+    else:
+        gray = image.convert('L')
+        bg_color = gray.getpixel((0, 0))
+        diff = Image.eval(gray, lambda x: 255 if abs(x - bg_color) > 30 else 0)
+        bbox = diff.getbbox()
+    
+    if bbox is None:
+        return image
+    
+    left, upper, right, lower = bbox
+    left = max(0, left - padding)
+    upper = max(0, upper - padding)
+    right = min(image.width, right + padding)
+    lower = min(image.height, lower + padding)
+    
+    return image.crop((left, upper, right, lower))
+
+
+def preprocess_image(image: Image.Image, remove_bg: bool = False, auto_crop: bool = False, 
+                     target_size: int = None) -> Image.Image:
+    """
+    Apply preprocessing steps to an image.
+    
+    Args:
+        image: PIL Image object
+        remove_bg: Whether to remove background
+        auto_crop: Whether to auto-crop the image
+        target_size: Optional target size for resizing
+    
+    Returns:
+        Preprocessed PIL Image
+    """
+    result = image.copy()
+    
+    if remove_bg:
+        result = remove_background(result)
+    
+    if auto_crop:
+        result = auto_crop_image(result)
+    
+    if target_size:
+        result = resize_image(result, max_size=target_size)
+    
+    return result
+
+
 def resize_image(image: Image.Image, max_size: int = 1024) -> Image.Image:
     """
     Resize an image while maintaining aspect ratio.

@@ -4,7 +4,7 @@ import io
 import base64
 from datetime import datetime
 from utils.api_handler import VirtualTryOnAPI
-from utils.image_utils import resize_image, image_to_base64, validate_image
+from utils.image_utils import resize_image, image_to_base64, validate_image, preprocess_image
 
 st.set_page_config(
     page_title="Fashion Mirror - Virtual Try-On",
@@ -135,6 +135,29 @@ with st.sidebar:
     
     st.divider()
     
+    st.subheader("🖼️ Image Preprocessing")
+    st.caption("Optimize images before processing")
+    
+    remove_person_bg = st.checkbox(
+        "Remove person background",
+        value=False,
+        help="Remove background from person image for better results"
+    )
+    
+    remove_clothing_bg = st.checkbox(
+        "Remove clothing background",
+        value=False,
+        help="Remove background from clothing image for cleaner try-on"
+    )
+    
+    auto_crop_clothing = st.checkbox(
+        "Auto-crop clothing",
+        value=False,
+        help="Automatically crop clothing image to remove excess whitespace"
+    )
+    
+    st.divider()
+    
     st.subheader("📋 Instructions")
     st.markdown("""
     1. **Configure API**: Enter your virtual try-on API key
@@ -256,8 +279,29 @@ if generate_btn:
                     custom_url=st.session_state.custom_url if api_provider == "Custom API" else None
                 )
                 
-                person_resized = resize_image(st.session_state.person_image, max_size=1024)
-                clothing_resized = resize_image(st.session_state.clothing_image, max_size=1024)
+                person_processed = st.session_state.person_image.copy()
+                clothing_processed = st.session_state.clothing_image.copy()
+                
+                if remove_person_bg:
+                    try:
+                        with st.status("Removing person background...", expanded=False):
+                            person_processed = preprocess_image(person_processed, remove_bg=True)
+                    except Exception as e:
+                        st.warning(f"Could not remove person background: {str(e)}. Using original image.")
+                
+                if remove_clothing_bg or auto_crop_clothing:
+                    try:
+                        with st.status("Processing clothing image...", expanded=False):
+                            clothing_processed = preprocess_image(
+                                clothing_processed, 
+                                remove_bg=remove_clothing_bg, 
+                                auto_crop=auto_crop_clothing
+                            )
+                    except Exception as e:
+                        st.warning(f"Could not process clothing image: {str(e)}. Using original image.")
+                
+                person_resized = resize_image(person_processed, max_size=1024)
+                clothing_resized = resize_image(clothing_processed, max_size=1024)
                 
                 result = api.generate_tryon(person_resized, clothing_resized)
                 
