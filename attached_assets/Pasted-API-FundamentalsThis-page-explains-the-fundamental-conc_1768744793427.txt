@@ -1,0 +1,119 @@
+API FundamentalsThis page explains the fundamental concepts and patterns that are consistent across all FASHN API endpoints. Understanding these concepts will help you integrate any current or future endpoint.
+Authentication
+All API requests require authentication using a Bearer token in the Authorization header:
+Authorization: Bearer YOUR_API_KEY
+You can obtain your API key from the Developer API Dashboard.
+Request Pattern
+All FASHN model endpoints follow a consistent request pattern to the same /v1/run endpoint:
+POSThttps://api.fashn.ai/v1/runRequest ExamplescURLJavaScriptPythonimport requests
+ 
+response = requests.post(
+  "https://api.fashn.ai/v1/run",
+  headers={
+    "Authorization": "Bearer YOUR_API_KEY", 
+    "Content-Type": "application/json"
+  },
+  json={
+    "model_name": "endpoint-specific-model-name",
+    "inputs": {
+      // endpoint-specific parameters
+    }
+  }
+)
+Universal Request Properties
+model_nameRequiredstringSpecifies which model/endpoint to use for processing. Each endpoint has its own unique model name.
+inputsRequiredobjectContains all the input parameters for the selected model. The structure of this object varies by endpoint.
+Response Pattern
+Initial Response
+When you submit a request to /v1/run, you'll receive an immediate response with a prediction ID:
+Response{
+  "id": "123a87r9-4129-4bb3-be18-9c9fb5bd7fc1-u1",
+  "error": null
+}
+Status Polling
+Use the prediction ID to poll for status and results:
+GEThttps://api.fashn.ai/v1/status/{id}
+Response States
+Poll for the status of a specific prediction using its ID.
+status'starting' | 'in_queue' | 'processing' | 'completed' | 'failed'The current state of your prediction:
+starting - Prediction is being initialized
+in_queue - Prediction is waiting to be processed
+processing - Model is actively generating your result
+completed - Generation finished successfully, output available
+failed - Generation failed, check error details
+
+Example Status Responses
+In Progress:
+Response{
+  "id": "123a87r9-4129-4bb3-be18-9c9fb5bd7fc1-u1",
+  "status": "processing",
+  "error": null
+}
+Completed:
+Response{
+  "id": "123a87r9-4129-4bb3-be18-9c9fb5bd7fc1-u1",
+  "status": "completed",
+  "output": [
+    "https://cdn.fashn.ai/123a87r9-4129-4bb3-be18-9c9fb5bd7fc1-u1/output_0.png"
+  ],
+  "error": null
+}
+Output Availability Time Limits
+CDN URLs (default): Available for 72 hours after completion
+Base64 outputs (when return_base64: true): Available for 60 minutes after completion
+Learn more in the Data Retention & Privacy section.
+Failed:
+Response{
+  "id": "123a87r9-4129-4bb3-be18-9c9fb5bd7fc1-u1",
+  "status": "failed",
+  "error": {
+    "name": "ImageLoadError",
+    "message": "Error loading model image: Invalid URL format"
+  }
+}
+Error Handling
+At a high level there are two kinds of errors you may see. For detailed guidance and the full list of error codes, see the Error Handling page.
+API-Level Errors
+These are request validation or auth failures that happen before a prediction ID is issued. They return an HTTP error code and a short payload. Example:
+Response// HTTP 401 UnauthorizedAccess
+{
+  "error": "UnauthorizedAccess",
+  "message": "Unauthorized: Invalid token"
+}
+No id or status is returned because the request never entered processing.
+Runtime Errors
+These happen during model execution after a prediction ID was returned. You’ll see them when polling /v1/status/{id} with status: "failed". Some runtime errors are common across endpoints (for example, malformed image URLs), while others are endpoint-specific validations; see Error Handling for details. Example:
+Response{
+  "id": "123a87r9-4129-4bb3-be18-9c9fb5bd7fc1-u1",
+  "status": "failed",
+  "error": {
+    "name": "ImageLoadError",
+    "message": "Error loading model image: Invalid URL format"
+  }
+}
+Credits & Billing
+Credits are the unit of billing for all FASHN API endpoints.
+
+Base cost: Most endpoints start at 1 credit per output (for example, per generated image) unless stated otherwise on the specific endpoint page.
+Multiple outputs: If you request multiple outputs (for example, num_images: 3), credits are charged per output. A 3‑image request from a 1‑credit endpoint uses 3 credits.
+Configuration multipliers: Some options increase the credit cost per output. For example, enabling face_reference on endpoints that support it increases the cost from 1 credit per output to 4 credits per output.
+Failures: Credits are not consumed when a prediction fails.
+
+For a full, always up‑to‑date breakdown of credit costs across all endpoints and configurations, see the API pricing guide.
+Rate Limits
+These are the default rate limits that apply to all endpoints unless stated otherwise in the specific endpoint documentation:
+EndpointLimit/v1/run50 requests per 60 seconds/v1/status50 requests per 10 seconds
+Concurrency Limits
+The API has a default concurrency limit of 6 requests per limit. This means you can have up to 6 concurrent requests being processed at any given time.
+Rate Limit AdjustmentsOur API rate limits are in place to ensure fair usage and prevent misuse of our services. However, we understand that legitimate applications may require higher limits as they grow. If your app's usage nears the specified rate limits, and this usage is justified by your application's needs, we will gladly increase your rate limit. Please reach out to our support@fashn.ai to discuss your specific requirements.
+Endpoint Lifecycle
+All FASHN API endpoints are tagged with a lifecycle state to help you understand their stability and integration recommendations:
+
+stable - Mature endpoints that developers can trust will remain backwards-compatible. Any changes to these endpoints will maintain backwards compatibility.
+preview - Should be stable functionality with reliable integration support, but noticeable improvements to the underlying pipeline might still occur before final release.
+experimental - Supported endpoints that are still a work in progress. Underlying models or schema can change as we refine the technology.
+deprecated - Endpoints that are no longer supported and will be discontinued. Migration to newer alternatives is required.
+
+You'll find the lifecycle state listed in each endpoint's "Model Specifications" section to help you make informed integration decisions.
+Webhooks
+Instead of polling for status, you can configure webhooks to receive notifications when predictions complete. See the Webhooks Guide for setup instructions.
