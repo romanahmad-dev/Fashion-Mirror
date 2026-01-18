@@ -51,13 +51,13 @@ export function AppShell({ children }: AppShellProps) {
             <nav className="hidden md:flex items-center gap-6">
               {navItems.map((item) => (
                 <Link key={item.href} href={item.href}>
-                  <a className={cn(
-                    "flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary",
+                  <div className={cn(
+                    "flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary cursor-pointer",
                     location === item.href ? "text-primary" : "text-muted-foreground"
                   )}>
                     <item.icon className="w-4 h-4" />
                     {item.label}
-                  </a>
+                  </div>
                 </Link>
               ))}
               <div className="w-px h-6 bg-border mx-2" />
@@ -102,13 +102,13 @@ export function AppShell({ children }: AppShellProps) {
                 <div className="flex flex-col gap-6 mt-8">
                   {navItems.map((item) => (
                     <Link key={item.href} href={item.href}>
-                      <a className={cn(
-                        "flex items-center gap-3 text-lg font-medium transition-colors",
+                      <div className={cn(
+                        "flex items-center gap-3 text-lg font-medium transition-colors cursor-pointer",
                         location === item.href ? "text-primary" : "text-muted-foreground"
                       )}>
                         <item.icon className="w-5 h-5" />
                         {item.label}
-                      </a>
+                      </div>
                     </Link>
                   ))}
                   <div className="h-px bg-border my-2" />
