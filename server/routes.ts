@@ -29,6 +29,8 @@ const upload = multer({
   }
 });
 
+import { AiService } from "./services/ai.service";
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -76,59 +78,27 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const input = api.tryOns.create.input.parse(req.body);
       
-      // Initial creation in DB
       const tryOn = await storage.createTryOn({
         ...input,
         userId,
         status: 'starting' as const
       });
 
-      // Trigger FASHN API
       try {
-        if (!process.env.FASHN_API_KEY) {
-          throw new Error("FASHN API Key not configured");
-        }
-
-        const response = await fetch("https://api.fashn.ai/v1/run", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${process.env.FASHN_API_KEY}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            model_name: "fashn-tryon-v1", // Adjust model name if needed
-            inputs: {
-              model_image: input.modelImage,
-              garment_image: input.garmentImage,
-              category: input.category
-            }
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`FASHN API Error: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        
-        // Update with prediction ID
+        const data = await AiService.runTryOn(input);
         await storage.updateTryOnPredictionId(tryOn.id, data.id);
         await storage.updateTryOnStatus(tryOn.id, 'processing');
-
       } catch (apiError: any) {
-        console.error("FASHN API Error:", apiError);
+        console.error("AI Generation Error:", apiError);
         await storage.updateTryOnStatus(tryOn.id, 'failed', undefined, apiError.message);
       }
 
       res.status(201).json(tryOn);
     } catch (err) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({
-          message: err.errors[0].message,
-          field: err.errors[0].path.join('.'),
-        });
+        return res.status(400).json({ message: "Invalid input data" });
       }
-      res.status(500).json({ message: "Failed to create try-on" });
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 
@@ -156,36 +126,30 @@ export async function registerRoutes(
         return res.json({ status: 'failed', error: 'Missing prediction ID' });
       }
 
-      // Poll FASHN API
-      const response = await fetch(`https://api.fashn.ai/v1/status/${tryOn.predictionId}`, {
-        headers: {
-          "Authorization": `Bearer ${process.env.FASHN_API_KEY}`
+      // Poll FASHN API via Service
+      try {
+        const data = await AiService.checkStatus(tryOn.predictionId);
+        
+        // Update DB if status changed
+        if (data.status === 'completed' || data.status === 'failed') {
+          const resultImage = data.output && data.output.length > 0 ? data.output[0] : undefined;
+          const error = data.error ? data.error.message : undefined;
+          
+          await storage.updateTryOnStatus(tryOnId, data.status, resultImage, error);
+          
+          return res.json({
+            status: data.status,
+            resultImage,
+            error
+          });
         }
-      });
 
-      if (!response.ok) {
-        throw new Error("Failed to check status with FASHN API");
+        // Still processing
+        return res.json({ status: data.status });
+      } catch (aiError: any) {
+        console.error("AI Status Check Error:", aiError);
+        return res.status(502).json({ message: "AI provider error" });
       }
-
-      const data = await response.json();
-      
-      // Update DB if status changed
-      if (data.status === 'completed' || data.status === 'failed') {
-        const resultImage = data.output && data.output.length > 0 ? data.output[0] : undefined;
-        const error = data.error ? data.error.message : undefined;
-        
-        await storage.updateTryOnStatus(tryOnId, data.status, resultImage, error);
-        
-        return res.json({
-          status: data.status,
-          resultImage,
-          error
-        });
-      }
-
-      // Still processing
-      return res.json({ status: data.status });
-
     } catch (error) {
       console.error("Status check error:", error);
       res.status(500).json({ message: "Failed to check status" });

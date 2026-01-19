@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCreateTryOn } from "@/hooks/use-try-ons";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ChevronRight, ChevronLeft, Loader2, Shirt, User } from "lucide-react";
+import { ChevronRight, ChevronLeft, Loader2, Shirt, User, Camera, RefreshCw, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const steps = [
@@ -23,10 +23,51 @@ export default function NewTryOn() {
     garmentImage: "",
     category: "tops",
   });
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   
   const [, setLocation] = useLocation();
   const createTryOn = useCreateTryOn();
   const { toast } = useToast();
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        setIsCameraActive(true);
+      }
+    } catch (err) {
+      toast({
+        title: "Camera Error",
+        description: "Could not access your camera. Please check permissions.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current?.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      setIsCameraActive(false);
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx?.drawImage(video, 0, 0);
+      const dataUrl = canvas.toDataURL("image/jpeg");
+      setFormData({ ...formData, modelImage: dataUrl });
+      stopCamera();
+    }
+  };
 
   const handleNext = () => {
     if (currentStep === 1 && !formData.modelImage) {
@@ -98,20 +139,40 @@ export default function NewTryOn() {
                       <User className="w-6 h-6" /> Upload Model
                     </h2>
                     <p className="text-muted-foreground mb-6">
-                      Upload a full-body photo of yourself or the model. 
-                      Ensure good lighting and a simple background for best results.
+                      Upload a full-body photo of yourself or take one with your webcam.
                     </p>
-                    <ul className="space-y-2 text-sm text-muted-foreground mb-6 list-disc list-inside">
-                      <li>Supported formats: JPG, PNG, WEBP</li>
-                      <li>Max file size: 10MB</li>
-                      <li>Best resolution: 1024x1024 or higher</li>
-                    </ul>
+                    <div className="flex flex-col gap-3 mb-6">
+                      <Button variant="outline" onClick={startCamera} disabled={isCameraActive}>
+                        <Camera className="w-4 h-4 mr-2" /> Use Webcam
+                      </Button>
+                      <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                        <li>Ensure good lighting</li>
+                        <li>Stand against a plain background</li>
+                      </ul>
+                    </div>
                   </div>
-                  <FileUpload 
-                    label="Drop model image here"
-                    value={formData.modelImage}
-                    onFileSelect={(base64) => setFormData({ ...formData, modelImage: base64 })}
-                  />
+                  <div className="relative">
+                    {isCameraActive ? (
+                      <div className="relative aspect-[3/4] bg-muted rounded-2xl overflow-hidden border-2 border-primary">
+                        <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4">
+                          <Button size="icon" className="h-12 w-12 rounded-full shadow-lg" onClick={capturePhoto}>
+                            <div className="h-8 w-8 rounded-full border-4 border-white" />
+                          </Button>
+                          <Button variant="destructive" size="icon" className="h-12 w-12 rounded-full shadow-lg" onClick={stopCamera}>
+                            <X className="w-5 h-5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <FileUpload 
+                        label="Drop model image here"
+                        value={formData.modelImage}
+                        onFileSelect={(base64) => setFormData({ ...formData, modelImage: base64 })}
+                      />
+                    )}
+                    <canvas ref={canvasRef} className="hidden" />
+                  </div>
                 </div>
               </Card>
             </motion.div>
