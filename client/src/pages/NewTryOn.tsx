@@ -180,28 +180,25 @@ export default function NewTryOn() {
                           </Button>
                         </div>
                       </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <FileUpload 
-                          label="Drop model image here"
-                          value={formData.modelImage}
-                          onFileSelect={(base64) => setFormData({ ...formData, modelImage: base64 })}
-                        />
-                        {formData.modelImage && (
-                          <div className="relative aspect-[3/4] bg-muted rounded-2xl overflow-hidden border-2 border-primary">
-                            <img src={formData.modelImage} alt="Model" className="w-full h-full object-cover" />
-                            <Button 
-                              variant="secondary" 
-                              size="sm" 
-                              className="absolute top-2 right-2"
-                              onClick={() => setFormData({ ...formData, modelImage: "" })}
-                            >
-                              <RefreshCw className="w-4 h-4 mr-2" />
-                              Reset
-                            </Button>
-                          </div>
-                        )}
+                    ) : formData.modelImage ? (
+                      <div className="relative aspect-[3/4] bg-muted rounded-2xl overflow-hidden border-2 border-primary">
+                        <img src={formData.modelImage} alt="Model" className="w-full h-full object-cover" />
+                        <Button 
+                          variant="secondary" 
+                          size="sm" 
+                          className="absolute top-2 right-2"
+                          onClick={() => setFormData({ ...formData, modelImage: "" })}
+                        >
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          Reset
+                        </Button>
                       </div>
+                    ) : (
+                      <FileUpload 
+                        label="Drop model image here"
+                        value={formData.modelImage}
+                        onFileSelect={(base64) => setFormData({ ...formData, modelImage: base64 })}
+                      />
                     )}
                     <canvas ref={canvasRef} className="hidden" />
                   </div>
