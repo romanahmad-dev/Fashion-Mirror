@@ -81,11 +81,15 @@ export async function registerRoutes(
       const tryOn = await storage.createTryOn({
         ...input,
         userId,
-        status: 'starting' as const
+        status: 'pending' as const
       });
 
       try {
-        const data = await AiService.runTryOn(input);
+        const data = await AiService.runTryOn({
+          modelImage: input.modelImage,
+          garmentImage: input.garmentImage,
+          category: input.category || "tops"
+        });
         await storage.updateTryOnPredictionId(tryOn.id, data.id);
         await storage.updateTryOnStatus(tryOn.id, 'processing');
       } catch (apiError: any) {
