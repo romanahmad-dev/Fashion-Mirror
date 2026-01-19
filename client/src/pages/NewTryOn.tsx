@@ -142,9 +142,25 @@ export default function NewTryOn() {
                       Upload a full-body photo of yourself or take one with your webcam.
                     </p>
                     <div className="flex flex-col gap-3 mb-6">
-                      <Button variant="outline" onClick={startCamera} disabled={isCameraActive}>
-                        <Camera className="w-4 h-4 mr-2" /> Use Webcam
-                      </Button>
+                          <Button variant="outline" onClick={startCamera} disabled={isCameraActive}>
+                            <Camera className="w-4 h-4 mr-2" /> Use Webcam
+                          </Button>
+                          <label className="cursor-pointer">
+                            <Button variant="outline" className="w-full pointer-events-none">
+                              <Upload className="w-4 h-4 mr-2" />
+                              Upload File
+                            </Button>
+                            <input type="file" className="hidden" accept="image/*" onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setFormData({ ...formData, modelImage: reader.result as string });
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }} />
+                          </label>
                       <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
                         <li>Ensure good lighting</li>
                         <li>Stand against a plain background</li>
@@ -154,7 +170,7 @@ export default function NewTryOn() {
                   <div className="relative">
                     {isCameraActive ? (
                       <div className="relative aspect-[3/4] bg-muted rounded-2xl overflow-hidden border-2 border-primary">
-                        <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                        <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
                         <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4">
                           <Button size="icon" className="h-12 w-12 rounded-full shadow-lg" onClick={capturePhoto}>
                             <div className="h-8 w-8 rounded-full border-4 border-white" />
@@ -165,11 +181,27 @@ export default function NewTryOn() {
                         </div>
                       </div>
                     ) : (
-                      <FileUpload 
-                        label="Drop model image here"
-                        value={formData.modelImage}
-                        onFileSelect={(base64) => setFormData({ ...formData, modelImage: base64 })}
-                      />
+                      <div className="space-y-4">
+                        <FileUpload 
+                          label="Drop model image here"
+                          value={formData.modelImage}
+                          onFileSelect={(base64) => setFormData({ ...formData, modelImage: base64 })}
+                        />
+                        {formData.modelImage && (
+                          <div className="relative aspect-[3/4] bg-muted rounded-2xl overflow-hidden border-2 border-primary">
+                            <img src={formData.modelImage} alt="Model" className="w-full h-full object-cover" />
+                            <Button 
+                              variant="secondary" 
+                              size="sm" 
+                              className="absolute top-2 right-2"
+                              onClick={() => setFormData({ ...formData, modelImage: "" })}
+                            >
+                              <RefreshCw className="w-4 h-4 mr-2" />
+                              Reset
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     )}
                     <canvas ref={canvasRef} className="hidden" />
                   </div>
