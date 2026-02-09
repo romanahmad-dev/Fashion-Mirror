@@ -33,15 +33,29 @@ export default function NewTryOn() {
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      // First, list all devices to find Iriun if available
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      
+      // Look for Iriun specifically, otherwise use default
+      const iriunCamera = videoDevices.find(device => 
+        device.label.toLowerCase().includes('iriun')
+      );
+
+      const constraints = {
+        video: iriunCamera ? { deviceId: { exact: iriunCamera.deviceId } } : true
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setIsCameraActive(true);
       }
     } catch (err) {
+      console.error("Webcam Error:", err);
       toast({
         title: "Camera Error",
-        description: "Could not access your camera. Please check permissions.",
+        description: "Could not access your camera. If you're using Iriun, make sure the app is running on your phone.",
         variant: "destructive",
       });
     }
@@ -59,12 +73,45 @@ export default function NewTryOn() {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      
+      // Calculate aspect ratio to crop center for 3:4 portrait
+      const targetRatio = 3/4;
+      const videoRatio = video.videoWidth / video.videoHeight;
+      
+      let sourceWidth, sourceHeight, sourceX, sourceY;
+      
+      if (videoRatio > targetRatio) {
+        // Video is wider than target - crop sides
+        sourceHeight = video.videoHeight;
+        sourceWidth = video.videoHeight * targetRatio;
+        sourceX = (video.videoWidth - sourceWidth) / 2;
+        sourceY = 0;
+      } else {
+        // Video is taller than target - crop top/bottom
+        sourceWidth = video.videoWidth;
+        sourceHeight = video.videoWidth / targetRatio;
+        sourceX = 0;
+        sourceY = (video.videoHeight - sourceHeight) / 2;
+      }
+
+      canvas.width = 600; // Standardize resolution
+      canvas.height = 800;
+      
       const ctx = canvas.getContext("2d");
-      ctx?.drawImage(video, 0, 0);
-      const dataUrl = canvas.toDataURL("image/jpeg");
-      setFormData({ ...formData, modelImage: dataUrl });
+      if (ctx) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(video, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+      }
+      
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+      setFormData(prev => ({ ...prev, modelImage: dataUrl }));
+      
+      toast({
+        title: "Photo Captured",
+        description: "Your photo has been saved successfully.",
+      });
+      
       stopCamera();
     }
   };
@@ -169,14 +216,32 @@ export default function NewTryOn() {
                   </div>
                   <div className="relative">
                     {isCameraActive ? (
-                      <div className="relative aspect-[3/4] bg-muted rounded-2xl overflow-hidden border-2 border-primary">
+                      <div className="relative aspect-[3/4] bg-muted rounded-2xl overflow-hidden border-2 border-primary group">
                         <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-                        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4">
-                          <Button size="icon" className="h-12 w-12 rounded-full shadow-lg" onClick={capturePhoto}>
-                            <div className="h-8 w-8 rounded-full border-4 border-white" />
+                        
+                        {/* Enhancement: Live Indicator */}
+                        <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20">
+                          <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                          <span className="text-[10px] font-bold text-white uppercase tracking-widest">Live</span>
+                        </div>
+
+                        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4 transition-transform duration-300 group-hover:scale-105">
+                          <Button 
+                            size="icon" 
+                            className="h-14 w-14 rounded-full shadow-2xl bg-white hover:bg-white/90 border-4 border-primary/20" 
+                            onClick={capturePhoto}
+                            data-testid="button-capture"
+                          >
+                            <div className="h-10 w-10 rounded-full border-4 border-primary animate-in zoom-in-50 duration-300" />
                           </Button>
-                          <Button variant="destructive" size="icon" className="h-12 w-12 rounded-full shadow-lg" onClick={stopCamera}>
-                            <X className="w-5 h-5" />
+                          <Button 
+                            variant="destructive" 
+                            size="icon" 
+                            className="h-14 w-14 rounded-full shadow-2xl" 
+                            onClick={stopCamera}
+                            data-testid="button-stop-camera"
+                          >
+                            <X className="w-6 h-6" />
                           </Button>
                         </div>
                       </div>
