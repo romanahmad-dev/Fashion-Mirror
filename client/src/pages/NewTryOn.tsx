@@ -32,30 +32,49 @@ export default function NewTryOn() {
   const { toast } = useToast();
 
   const startCamera = async () => {
+    console.log("Starting camera sequence...");
     try {
-      // First, list all devices to find Iriun if available
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      console.log("Available video devices:", videoDevices.map(d => d.label));
       
-      // Look for Iriun specifically, otherwise use default
       const iriunCamera = videoDevices.find(device => 
         device.label.toLowerCase().includes('iriun')
       );
 
       const constraints = {
-        video: iriunCamera ? { deviceId: { exact: iriunCamera.deviceId } } : true
+        video: iriunCamera ? { 
+          deviceId: { exact: iriunCamera.deviceId },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        } : {
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
       };
 
+      console.log("Requesting getUserMedia with constraints:", constraints);
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      
       if (videoRef.current) {
+        console.log("Assigning stream to video element");
         videoRef.current.srcObject = stream;
-        setIsCameraActive(true);
+        
+        // Ensure play is called and handled
+        try {
+          await videoRef.current.play();
+          console.log("Video playback started");
+          setIsCameraActive(true);
+        } catch (playErr) {
+          console.error("Video play failed:", playErr);
+          throw playErr;
+        }
       }
     } catch (err) {
-      console.error("Webcam Error:", err);
+      console.error("Webcam Fatal Error:", err);
       toast({
-        title: "Camera Error",
-        description: "Could not access your camera. If you're using Iriun, make sure the app is running on your phone.",
+        title: "Camera Access Failed",
+        description: "We couldn't start your camera. Please ensure it's not being used by another app.",
         variant: "destructive",
       });
     }
@@ -70,49 +89,63 @@ export default function NewTryOn() {
   };
 
   const capturePhoto = () => {
+    console.log("Capture requested");
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
-      // Calculate aspect ratio to crop center for 3:4 portrait
+      // Stability: Check if video is actually providing frames
+      if (video.readyState < 2) {
+        console.error("Video not ready for capture");
+        return;
+      }
+
       const targetRatio = 3/4;
       const videoRatio = video.videoWidth / video.videoHeight;
       
       let sourceWidth, sourceHeight, sourceX, sourceY;
       
       if (videoRatio > targetRatio) {
-        // Video is wider than target - crop sides
         sourceHeight = video.videoHeight;
         sourceWidth = video.videoHeight * targetRatio;
         sourceX = (video.videoWidth - sourceWidth) / 2;
         sourceY = 0;
       } else {
-        // Video is taller than target - crop top/bottom
         sourceWidth = video.videoWidth;
         sourceHeight = video.videoWidth / targetRatio;
         sourceX = 0;
         sourceY = (video.videoHeight - sourceHeight) / 2;
       }
 
-      canvas.width = 600; // Standardize resolution
-      canvas.height = 800;
+      // Optimization: High-quality capture but optimized size
+      canvas.width = 768; 
+      canvas.height = 1024;
       
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext("2d", { alpha: false });
       if (ctx) {
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(video, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+        
+        console.log("Drawing complete, generating dataURL");
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.85); // Balanced quality/size
+        
+        if (dataUrl.length < 100) {
+          console.error("Captured image appears corrupted/empty");
+          toast({ title: "Capture Failed", description: "Image corrupted. Please try again.", variant: "destructive" });
+          return;
+        }
+
+        setFormData(prev => ({ ...prev, modelImage: dataUrl }));
+        console.log("Capture successful, size:", Math.round(dataUrl.length / 1024), "KB");
+        
+        toast({
+          title: "Photo Captured",
+          description: "Your photo has been saved successfully.",
+        });
+        
+        stopCamera();
       }
-      
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-      setFormData(prev => ({ ...prev, modelImage: dataUrl }));
-      
-      toast({
-        title: "Photo Captured",
-        description: "Your photo has been saved successfully.",
-      });
-      
-      stopCamera();
     }
   };
 
@@ -189,20 +222,32 @@ export default function NewTryOn() {
                       Upload a full-body photo of yourself or take one with your webcam.
                     </p>
                     <div className="flex flex-col gap-3 mb-6">
-                          <Button variant="outline" onClick={startCamera} disabled={isCameraActive}>
+                          <Button 
+                            variant="outline" 
+                            onClick={startCamera} 
+                            disabled={isCameraActive}
+                            className="hover-elevate transition-all active-elevate-2"
+                          >
                             <Camera className="w-4 h-4 mr-2" /> Use Webcam
                           </Button>
                           <label className="cursor-pointer">
-                            <Button variant="outline" className="w-full pointer-events-none">
+                            <Button 
+                              variant="outline" 
+                              className="w-full pointer-events-none hover-elevate transition-all active-elevate-2"
+                            >
                               <Upload className="w-4 h-4 mr-2" />
                               Upload File
                             </Button>
-                            <input type="file" className="hidden" accept="image/*" onChange={(e) => {
+                            <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (file) {
+                                console.log("File selected:", file.name, "Size:", Math.round(file.size / 1024), "KB");
                                 const reader = new FileReader();
                                 reader.onloadend = () => {
-                                  setFormData({ ...formData, modelImage: reader.result as string });
+                                  const result = reader.result as string;
+                                  // Compression logic would go here if needed for large files
+                                  setFormData({ ...formData, modelImage: result });
+                                  console.log("File loaded into state");
                                 };
                                 reader.readAsDataURL(file);
                               }
@@ -216,8 +261,15 @@ export default function NewTryOn() {
                   </div>
                   <div className="relative">
                     {isCameraActive ? (
-                      <div className="relative aspect-[3/4] bg-muted rounded-2xl overflow-hidden border-2 border-primary group">
-                        <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                      <div className="relative aspect-[3/4] bg-black rounded-2xl overflow-hidden border-2 border-primary group">
+                        <video 
+                          ref={videoRef} 
+                          autoPlay 
+                          playsInline 
+                          muted 
+                          className="w-full h-full object-cover"
+                          onCanPlay={() => console.log("Video can play")}
+                        />
                         
                         {/* Enhancement: Live Indicator */}
                         <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20">
