@@ -62,15 +62,17 @@ export default function NewTryOn() {
       console.log("Stream obtained:", stream.id, "Active:", stream.active);
       
       if (videoRef.current) {
+        console.log("Video element found:", videoRef.current);
         console.log("Assigning stream to video element. Current srcObject:", videoRef.current.srcObject);
         videoRef.current.srcObject = stream;
+        console.log("Stream assigned to srcObject");
         
         // Ensure play is called and handled with logs
         videoRef.current.onloadedmetadata = async () => {
           console.log("Video metadata loaded. Resolution:", videoRef.current?.videoWidth, "x", videoRef.current?.videoHeight);
           try {
             await videoRef.current?.play();
-            console.log("Video playback started successfully");
+            console.log("Video playing: playback started successfully");
             setIsCameraActive(true);
           } catch (playErr) {
             console.error("Video play failed:", playErr);
