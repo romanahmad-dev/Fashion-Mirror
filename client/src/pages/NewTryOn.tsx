@@ -34,47 +34,61 @@ export default function NewTryOn() {
   const startCamera = async () => {
     console.log("Starting camera sequence...");
     try {
+      // List all devices for logging purposes
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
-      console.log("Available video devices:", videoDevices.map(d => d.label));
+      console.log("Available video devices:", videoDevices.map(d => `${d.label} (${d.deviceId})`));
       
-      const iriunCamera = videoDevices.find(device => 
+      // Preferred camera: Iriun or similar if exists
+      const preferredCamera = videoDevices.find(device => 
         device.label.toLowerCase().includes('iriun')
       );
 
-      const constraints = {
-        video: iriunCamera ? { 
-          deviceId: { exact: iriunCamera.deviceId },
+      const constraints: MediaStreamConstraints = {
+        video: preferredCamera ? { 
+          deviceId: { exact: preferredCamera.deviceId },
           width: { ideal: 1280 },
           height: { ideal: 720 }
         } : {
+          // If no preferred, use default (first available)
           width: { ideal: 1280 },
-          height: { ideal: 720 }
+          height: { ideal: 720 },
+          facingMode: "user"
         }
       };
 
       console.log("Requesting getUserMedia with constraints:", constraints);
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log("Stream obtained:", stream.id, "Active:", stream.active);
       
       if (videoRef.current) {
-        console.log("Assigning stream to video element");
+        console.log("Assigning stream to video element. Current srcObject:", videoRef.current.srcObject);
         videoRef.current.srcObject = stream;
         
-        // Ensure play is called and handled
-        try {
+        // Ensure play is called and handled with logs
+        videoRef.current.onloadedmetadata = async () => {
+          console.log("Video metadata loaded. Resolution:", videoRef.current?.videoWidth, "x", videoRef.current?.videoHeight);
+          try {
+            await videoRef.current?.play();
+            console.log("Video playback started successfully");
+            setIsCameraActive(true);
+          } catch (playErr) {
+            console.error("Video play failed:", playErr);
+          }
+        };
+
+        // Fallback for metadata already loaded or browsers that don't fire it reliably
+        if (videoRef.current.readyState >= 2) {
+          console.log("Video already ready, calling play directly");
           await videoRef.current.play();
-          console.log("Video playback started");
           setIsCameraActive(true);
-        } catch (playErr) {
-          console.error("Video play failed:", playErr);
-          throw playErr;
         }
       }
     } catch (err) {
       console.error("Webcam Fatal Error:", err);
       toast({
         title: "Camera Access Failed",
-        description: "We couldn't start your camera. Please ensure it's not being used by another app.",
+        description: "We couldn't start your camera. Please ensure permissions are granted and the device is not in use.",
         variant: "destructive",
       });
     }
