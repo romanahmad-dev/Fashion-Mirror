@@ -277,23 +277,24 @@ export default function NewTryOn() {
                   </div>
                   <div className="relative">
                     {isCameraActive ? (
-                      <div className="relative aspect-[3/4] bg-black rounded-2xl overflow-hidden border-2 border-primary group">
+                      <div className="relative aspect-[3/4] bg-black rounded-2xl overflow-hidden border-2 border-primary group flex items-center justify-center">
                         <video 
                           ref={videoRef} 
                           autoPlay 
                           playsInline 
                           muted 
-                          className="w-full h-full object-cover"
+                          className="absolute inset-0 w-full h-full object-cover z-0"
                           onCanPlay={() => console.log("Video can play")}
+                          style={{ display: 'block', opacity: 1 }}
                         />
                         
                         {/* Enhancement: Live Indicator */}
-                        <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20">
+                        <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 z-10">
                           <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                           <span className="text-[10px] font-bold text-white uppercase tracking-widest">Live</span>
                         </div>
 
-                        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4 transition-transform duration-300 group-hover:scale-105">
+                        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4 transition-transform duration-300 group-hover:scale-105 z-10">
                           <Button 
                             size="icon" 
                             className="h-14 w-14 rounded-full shadow-2xl bg-white hover:bg-white/90 border-4 border-primary/20" 
