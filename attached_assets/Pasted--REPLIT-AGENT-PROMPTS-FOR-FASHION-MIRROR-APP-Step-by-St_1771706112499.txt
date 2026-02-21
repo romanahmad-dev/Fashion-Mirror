@@ -1,0 +1,700 @@
+# REPLIT AGENT PROMPTS FOR FASHION MIRROR APP
+## Step-by-Step Prompts to Build AI Virtual Try-On System
+
+---
+
+## 🎯 STRATEGY: Incremental Building Approach
+
+**Important:** Don't give all features in one prompt!
+Build step by step:
+1. Basic Flask app first
+2. Then add image upload
+3. Then add camera (WebRTC)
+4. Then add AI integration
+5. Finally polish and optimize
+
+---
+
+## PROMPT 1: INITIAL FLASK APP SETUP
+
+### **Copy-Paste This:**
+
+```
+Create a Flask web application with the following structure:
+
+1. Basic Flask app with routes:
+   - Homepage route (/)
+   - Health check route (/health)
+
+2. Project structure:
+   - app.py (main Flask application)
+   - templates/index.html (homepage)
+   - static/css/style.css (styling)
+   - static/js/app.js (JavaScript)
+   - requirements.txt (dependencies)
+
+3. Homepage should have:
+   - Clean, modern UI
+   - Title: "Fashion Mirror - Virtual Try-On"
+   - Two main sections: "Upload Your Photo" and "Select Garment"
+   - Simple, responsive design
+
+4. Install Flask and start the server on port 5000
+
+Requirements:
+- Use Flask==3.0.0
+- Add proper error handling
+- Include basic logging
+- Make it production-ready
+
+Run the app automatically after creation.
+```
+
+**Expected Result:** Basic Flask app running with a simple homepage
+
+---
+
+## PROMPT 2: IMAGE UPLOAD FUNCTIONALITY
+
+### **Copy-Paste This:**
+
+```
+Enhance the Flask app to handle image uploads:
+
+1. Backend (app.py):
+   - Add route: POST /api/upload/human (for user photo)
+   - Add route: POST /api/upload/dress (for garment photo)
+   - Create uploads directory with subfolders: human/, dress/, results/
+   - Accept image files (jpg, png, jpeg)
+   - Validate file types and sizes (max 5MB)
+   - Save uploaded images with unique filenames (use UUID)
+   - Return JSON response with file path
+
+2. Frontend (templates/index.html):
+   - Add two file upload buttons:
+     * "Upload Your Photo" (for human image)
+     * "Upload Garment" (for dress image)
+   - Show image preview after upload
+   - Display upload progress
+   - Show success/error messages
+
+3. JavaScript (static/js/app.js):
+   - Handle file selection
+   - Send files via AJAX/fetch
+   - Display image previews
+   - Handle upload errors
+
+4. Styling (static/css/style.css):
+   - Make upload sections look professional
+   - Add hover effects on buttons
+   - Show image previews nicely
+   - Responsive design
+
+Test with sample images and ensure uploads work correctly.
+```
+
+**Expected Result:** Working image upload system with previews
+
+---
+
+## PROMPT 3: WEBCAM INTEGRATION (WebRTC) - CRITICAL
+
+### **Copy-Paste This:**
+
+```
+Add webcam/camera functionality to capture user photos using WebRTC:
+
+1. Frontend JavaScript (static/js/app.js):
+   - Add camera initialization using navigator.mediaDevices.getUserMedia()
+   - Create video element to show live camera feed
+   - Implement device selection (support multiple cameras)
+   - Add "Capture Photo" button functionality
+   - Convert captured image to blob/base64
+   - Display captured photo preview
+   - Add "Retake" option
+
+2. HTML Updates (templates/index.html):
+   - Add "Use Camera" button in human photo section
+   - Add video element (hidden by default)
+   - Add device selector dropdown
+   - Add "Capture" and "Retake" buttons
+   - Show/hide elements based on state
+
+3. Features to implement:
+   - List available camera devices
+   - Allow user to switch between front/back camera
+   - Handle camera permissions
+   - Handle errors (camera not available, permission denied)
+   - Stop camera stream when done
+   - Send captured image to backend
+
+4. Camera Controls:
+   - Start camera button
+   - Stop camera button
+   - Switch camera button (if multiple available)
+   - Capture button (take photo)
+   - Retake button (capture again)
+
+5. Error Handling:
+   - No camera available
+   - Permission denied
+   - Camera in use by another app
+
+Make the camera interface user-friendly and mobile-responsive.
+
+Important: 
+- Use modern WebRTC API (navigator.mediaDevices.getUserMedia)
+- Support both desktop and mobile cameras
+- Handle HTTPS requirement for camera access
+- Add proper constraints (width: 640, height: 480)
+```
+
+**Expected Result:** Working camera with capture functionality
+
+---
+
+## PROMPT 4: DATABASE SETUP
+
+### **Copy-Paste This:**
+
+```
+Add SQLite database to store try-on history and garment inventory:
+
+1. Database Schema:
+   - Table: tryon_history
+     * id (TEXT, primary key)
+     * human_image (TEXT, filename)
+     * dress_image (TEXT, filename)
+     * result_image (TEXT, filename)
+     * dress_name (TEXT)
+     * created_at (TIMESTAMP)
+
+   - Table: dress_inventory
+     * id (TEXT, primary key)
+     * name (TEXT, garment name)
+     * image_path (TEXT, filename)
+     * usage_count (INTEGER, default 0)
+     * created_at (TIMESTAMP)
+
+2. Backend Implementation (app.py):
+   - Initialize database on app startup
+   - Create tables if not exist
+   - Add database connection function
+   - Add CRUD operations for both tables
+
+3. New API Routes:
+   - GET /api/inventory (get all garments)
+   - POST /api/inventory (add new garment)
+   - GET /api/history (get try-on history)
+   - DELETE /api/history (clear history)
+
+4. Frontend Updates:
+   - Display garment inventory
+   - Show try-on history
+   - Add "Browse Inventory" section
+
+Use SQLite3 (built-in Python module). Add proper error handling and logging.
+```
+
+**Expected Result:** Database working with inventory and history
+
+---
+
+## PROMPT 5: AI INTEGRATION (Replicate API)
+
+### **Copy-Paste This:**
+
+```
+Integrate AI virtual try-on using Replicate API:
+
+1. Setup:
+   - Install replicate package
+   - Add REPLICATE_API_TOKEN to environment variables
+   - Use IDM-VTON model: "cuuupid/idm-vton"
+
+2. Backend Route (app.py):
+   - Add route: POST /api/tryon
+   - Accept: human_image filename, dress_image filename
+   - Read both images and convert to base64
+   - Call Replicate API with:
+     * human_img: base64 data URI
+     * garm_img: base64 data URI
+     * garment_des: description
+     * is_checked: True
+     * denoise_steps: 30
+     * seed: 42
+   - Save result image to uploads/results/
+   - Return result image path
+
+3. Image Processing:
+   - Resize images if larger than 1536x1536 (use Pillow)
+   - Handle API response (URL or bytes)
+   - Save result with unique filename
+
+4. Frontend Updates:
+   - Add "Generate Try-On" button
+   - Disable button until both images selected
+   - Show loading indicator during processing
+   - Display result image when ready
+   - Add download button for result
+
+5. Error Handling:
+   - No API key configured
+   - API request fails
+   - Invalid images
+   - Processing timeout
+
+Code example for Replicate call:
+```python
+import replicate
+
+output = replicate.run(
+    "cuuupid/idm-vton:...",
+    input={
+        "human_img": human_data_uri,
+        "garm_img": dress_data_uri,
+        "garment_des": "clothing item",
+        "is_checked": True,
+        "denoise_steps": 30,
+        "seed": 42
+    }
+)
+```
+
+Important: Handle both URL and FileOutput responses from API.
+Add timeouts and retry logic.
+```
+
+**Expected Result:** Working AI try-on generation
+
+---
+
+## PROMPT 6: BACKGROUND REMOVAL (Optional Enhancement)
+
+### **Copy-Paste This:**
+
+```
+Add automatic background removal to try-on results using BRIA RMBG model:
+
+1. Backend Enhancement (app.py):
+   - After getting try-on result, call background removal
+   - Use Replicate API: "briaai/bria-rmbg-1.4"
+   - Input: result image from try-on
+   - Output: result with removed background
+   - Save cleaned image
+
+2. Implementation:
+   - Run background removal after try-on completes
+   - If it fails, still return original result
+   - Add option to toggle background removal
+
+Code:
+```python
+bg_removed = replicate.run(
+    "briaai/bria-rmbg-1.4",
+    input={"image": result_image_path}
+)
+```
+
+Make this feature optional with a checkbox on frontend.
+```
+
+**Expected Result:** Clean results with removed backgrounds
+
+---
+
+## PROMPT 7: UI/UX POLISH
+
+### **Copy-Paste This:**
+
+```
+Polish the user interface for professional look:
+
+1. Design Improvements:
+   - Modern gradient background
+   - Card-based layout for sections
+   - Professional color scheme (navy blue, white, accent colors)
+   - Smooth animations and transitions
+   - Loading spinners with progress text
+   - Professional fonts (Google Fonts: Poppins, Inter, or Roboto)
+
+2. User Experience:
+   - Clear step-by-step workflow indicators
+   - Helpful tooltips and instructions
+   - Success/error notifications (toast messages)
+   - Image size guidelines
+   - Mobile-responsive layout
+   - Intuitive button placement
+
+3. Features to Add:
+   - "Download Result" button with proper filename
+   - "Clear All" button to reset
+   - "View History" section
+   - "Browse Inventory" gallery view
+   - Smooth scroll to results
+
+4. CSS Enhancements:
+   - Box shadows for depth
+   - Hover effects on all interactive elements
+   - Consistent spacing and padding
+   - Professional button styles
+   - Loading overlays
+
+5. Accessibility:
+   - Proper alt text for images
+   - Keyboard navigation support
+   - ARIA labels
+   - Good color contrast
+
+Make it look like a professional product, not a student project.
+```
+
+**Expected Result:** Beautiful, professional-looking interface
+
+---
+
+## PROMPT 8: ERROR HANDLING & VALIDATION
+
+### **Copy-Paste This:**
+
+```
+Add comprehensive error handling and input validation:
+
+1. Backend Validation (app.py):
+   - Check file types (only images allowed)
+   - Validate file sizes (max 5MB)
+   - Check if files exist before processing
+   - Validate API responses
+   - Handle missing API keys gracefully
+   - Add try-catch blocks everywhere
+   - Log all errors properly
+
+2. Frontend Validation (app.js):
+   - Validate before upload
+   - Check image dimensions
+   - Ensure both images selected before try-on
+   - Handle network errors
+   - User-friendly error messages
+
+3. Error Messages:
+   - File too large: "Image must be under 5MB"
+   - Wrong format: "Please upload JPG, PNG, or JPEG"
+   - API error: "Processing failed. Please try again."
+   - No camera: "Camera not available on this device"
+   - Permission denied: "Please allow camera access"
+
+4. Logging:
+   - Log all API calls
+   - Log errors with stack traces
+   - Log file operations
+   - Use Python logging module
+
+5. Rate Limiting:
+   - Prevent multiple simultaneous requests
+   - Disable button during processing
+   - Add request cooldown if needed
+
+Add a .env.example file showing required environment variables.
+```
+
+**Expected Result:** Robust app with proper error handling
+
+---
+
+## PROMPT 9: MOBILE OPTIMIZATION
+
+### **Copy-Paste This:**
+
+```
+Optimize the application for mobile devices:
+
+1. Responsive Design:
+   - Mobile-first approach
+   - Breakpoints for phone, tablet, desktop
+   - Stack sections vertically on mobile
+   - Touch-friendly button sizes (min 44px)
+   - Proper viewport meta tag
+
+2. Mobile-Specific Features:
+   - Optimize camera for mobile (prefer back camera)
+   - Add pinch-to-zoom for images
+   - Swipe gestures for navigation
+   - Bottom sheet for options on mobile
+   - Mobile-optimized image sizes
+
+3. Performance:
+   - Compress images before upload
+   - Lazy load images
+   - Reduce bundle size
+   - Fast loading times
+
+4. Camera Handling:
+   - Better device selection on mobile
+   - Handle screen rotation
+   - Optimize for different camera resolutions
+   - Test on iOS and Android
+
+5. Testing:
+   - Test on Chrome mobile
+   - Test on Safari mobile
+   - Test landscape and portrait modes
+   - Test on different screen sizes
+
+Make sure camera works perfectly on mobile devices.
+```
+
+**Expected Result:** Fully mobile-responsive app
+
+---
+
+## PROMPT 10: DEPLOYMENT & FINAL TOUCHES
+
+### **Copy-Paste This:**
+
+```
+Prepare the application for deployment and add final features:
+
+1. Documentation:
+   - Create README.md with:
+     * Project description
+     * Setup instructions
+     * API key configuration
+     * How to run locally
+     * Feature list
+   - Add code comments
+   - Create .env.example file
+
+2. Configuration:
+   - Move all settings to environment variables
+   - Add config.py for centralized config
+   - Secure secret keys
+   - Add CORS if needed
+
+3. Performance:
+   - Add caching for static files
+   - Optimize image loading
+   - Minify CSS/JS (if needed)
+   - Add compression
+
+4. Security:
+   - Sanitize file uploads
+   - Add CSRF protection
+   - Validate all inputs
+   - Secure file paths
+
+5. Testing:
+   - Test all features end-to-end
+   - Test error scenarios
+   - Test on different browsers
+   - Test camera on different devices
+
+6. Final Polish:
+   - Add favicon
+   - Add proper page title and meta tags
+   - Add loading states everywhere
+   - Ensure all buttons work
+   - Fix any remaining bugs
+
+7. Deployment Files:
+   - requirements.txt (complete)
+   - .replit file (if needed)
+   - pyproject.toml (optional)
+
+Make the app production-ready with proper documentation.
+```
+
+**Expected Result:** Fully deployed, documented application
+
+---
+
+## 🎯 BONUS PROMPTS (Advanced Features)
+
+### **PROMPT 11: History View**
+
+```
+Add a comprehensive history viewing system:
+
+1. Display all previous try-on sessions
+2. Show date, time, and images
+3. Add search and filter options
+4. Allow re-downloading old results
+5. Add delete option for individual items
+6. Pagination if many results
+```
+
+### **PROMPT 12: Inventory Management**
+
+```
+Create inventory management interface:
+
+1. Gallery view of all garments
+2. Add new garments with names
+3. Edit garment details
+4. Delete garments
+5. Show usage statistics
+6. Search and filter inventory
+```
+
+---
+
+## 📝 TIPS FOR USING THESE PROMPTS:
+
+### **1. Order Matters:**
+- Start with Prompt 1
+- Complete each step before moving to next
+- Test thoroughly after each prompt
+
+### **2. Environment Variables:**
+After AI integration, add to Replit Secrets:
+```
+REPLICATE_API_TOKEN=your_token_here
+```
+
+### **3. If Replit Gets Confused:**
+- Break down prompts into smaller steps
+- Give one feature at a time
+- Reference existing files explicitly
+
+### **4. Common Issues & Fixes:**
+
+**Issue:** Camera not working
+**Solution:** 
+```
+Ensure the app is running on HTTPS (Replit provides this automatically)
+Add proper error handling for getUserMedia
+```
+
+**Issue:** Large files upload slowly
+**Solution:**
+```
+Add image compression before upload
+Show progress bar during upload
+```
+
+**Issue:** API timeout
+**Solution:**
+```
+Increase timeout limits
+Add retry logic
+Show better loading messages
+```
+
+### **5. Testing Each Step:**
+
+After each prompt, test:
+- Does the new feature work?
+- Are there any errors in console?
+- Does it work on mobile?
+- Is the UI still responsive?
+
+---
+
+## 🚀 ALTERNATIVE: ONE COMPREHENSIVE PROMPT
+
+If you want to try everything at once (risky but faster):
+
+```
+Create a complete Flask-based AI Virtual Try-On web application with these features:
+
+CORE FUNCTIONALITY:
+1. Image upload (user photo and garment photo)
+2. WebRTC camera integration for live photo capture
+3. Camera device selection (multiple cameras)
+4. AI virtual try-on using Replicate API (IDM-VTON model)
+5. Background removal using BRIA-RMBG model
+6. SQLite database for history and inventory
+7. Try-on history viewing
+8. Garment inventory management
+
+TECHNICAL STACK:
+- Backend: Python Flask
+- Frontend: HTML, CSS, JavaScript
+- Database: SQLite
+- AI: Replicate API (IDM-VTON, BRIA-RMBG)
+- Camera: WebRTC (getUserMedia API)
+
+PROJECT STRUCTURE:
+- app.py (Flask backend)
+- templates/index.html
+- static/css/style.css
+- static/js/app.js
+- uploads/ (human/, dress/, results/)
+- requirements.txt
+
+KEY FEATURES:
+- Dual input: upload or camera capture
+- Real-time camera preview
+- Device selection for multiple cameras
+- Image preview before processing
+- Loading indicators during AI processing
+- Download results
+- Mobile responsive
+- Professional UI
+
+IMPORTANT:
+- Handle camera permissions properly
+- Support HTTPS for camera access
+- Validate image uploads (max 5MB, jpg/png only)
+- Proper error handling throughout
+- Environment variable for REPLICATE_API_TOKEN
+- Modern, clean UI design
+
+Build this step by step, testing each feature before moving to next.
+```
+
+**Warning:** This might confuse Replit Agent. Better to use step-by-step approach!
+
+---
+
+## 📊 EXPECTED TIMELINE:
+
+**Using Step-by-Step Prompts:**
+- Prompt 1-2: 30 minutes (Basic app + upload)
+- Prompt 3: 45 minutes (Camera - most complex)
+- Prompt 4: 20 minutes (Database)
+- Prompt 5: 30 minutes (AI integration)
+- Prompt 6-10: 1-2 hours (Polish and optimization)
+
+**Total:** 3-4 hours (with testing)
+
+---
+
+## ✅ FINAL CHECKLIST:
+
+After all prompts, ensure:
+- [ ] Basic Flask app runs
+- [ ] Image upload works
+- [ ] Camera captures photos (test on mobile!)
+- [ ] Device selection works
+- [ ] AI try-on generates results
+- [ ] Background removal works
+- [ ] Database saves history
+- [ ] Inventory management works
+- [ ] Mobile responsive
+- [ ] Error handling works
+- [ ] Professional UI
+- [ ] Documentation complete
+
+---
+
+## 🎯 PRO TIPS:
+
+1. **For WebRTC specifically:**
+   - Test on actual mobile device (camera behaves differently)
+   - Use Replit's preview on phone
+   - Check browser console for errors
+
+2. **API Keys:**
+   - Get Replicate API key from replicate.com
+   - Free tier gives limited credits
+   - Store in Replit Secrets, not code
+
+3. **Debugging:**
+   - Check Flask console logs
+   - Check browser console
+   - Use print() statements liberally
+
+4. **If Stuck:**
+   - Ask Replit Agent to "fix the camera not working"
+   - Ask to "debug the WebRTC implementation"
+   - Ask to "show me the error in console"
