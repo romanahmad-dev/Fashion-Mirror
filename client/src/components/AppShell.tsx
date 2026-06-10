@@ -82,12 +82,12 @@ export function AppShell({ children }: AppShellProps) {
           {/* Auth Buttons for logged out */}
           {!isAuthenticated && (
             <div className="flex items-center gap-4">
-              <Link href="/api/login">
+              <a href="/api/login">
                 <Button variant="ghost">Sign In</Button>
-              </Link>
-              <Link href="/api/login">
+              </a>
+              <a href="/api/login">
                 <Button className="font-medium">Get Started</Button>
-              </Link>
+              </a>
             </div>
           )}
 

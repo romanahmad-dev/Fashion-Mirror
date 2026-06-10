@@ -50,17 +50,17 @@ export default function Landing() {
               </motion.p>
               
               <motion.div variants={item} className="flex gap-4">
-                <Link href="/api/login">
+                <a href="/api/login">
                   <Button size="lg" className="h-14 px-8 text-base rounded-full group">
                     Start Free Trial
                     <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                   </Button>
-                </Link>
-                <Link href="#features">
+                </a>
+                <a href="#features">
                   <Button size="lg" variant="outline" className="h-14 px-8 text-base rounded-full">
                     Learn More
                   </Button>
-                </Link>
+                </a>
               </motion.div>
             </motion.div>
 
@@ -137,11 +137,11 @@ export default function Landing() {
               <p className="text-primary-foreground/80 text-lg">
                 Join thousands of users who are already experiencing the future of virtual fashion.
               </p>
-              <Link href="/api/login">
+              <a href="/api/login">
                 <Button size="lg" variant="secondary" className="h-14 px-8 text-base rounded-full">
                   Get Started for Free
                 </Button>
-              </Link>
+              </a>
             </div>
             
             {/* Background pattern */}
