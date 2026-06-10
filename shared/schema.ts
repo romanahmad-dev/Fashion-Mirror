@@ -22,6 +22,16 @@ export const tryOns = pgTable("try_ons", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const garmentInventory = pgTable("garment_inventory", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").references(() => users.id),
+  name: text("name").notNull(),
+  imageUrl: text("image_url").notNull(),
+  category: text("category").notNull().default("tops"),
+  usageCount: integer("usage_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // === BASE SCHEMAS ===
 export const insertTryOnSchema = createInsertSchema(tryOns).omit({ 
   id: true, 
@@ -34,11 +44,21 @@ export const insertTryOnSchema = createInsertSchema(tryOns).omit({
   updatedAt: true 
 });
 
+export const insertGarmentSchema = createInsertSchema(garmentInventory).omit({
+  id: true,
+  userId: true,
+  usageCount: true,
+  createdAt: true,
+});
+
 // === EXPLICIT API CONTRACT TYPES ===
 
 // Base types
 export type TryOn = typeof tryOns.$inferSelect;
 export type InsertTryOn = z.infer<typeof insertTryOnSchema>;
+
+export type Garment = typeof garmentInventory.$inferSelect;
+export type InsertGarment = z.infer<typeof insertGarmentSchema>;
 
 // Request types
 export type CreateTryOnRequest = InsertTryOn;

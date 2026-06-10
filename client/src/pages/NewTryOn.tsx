@@ -18,10 +18,24 @@ const steps = [
 
 export default function NewTryOn() {
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState({
-    modelImage: "",
-    garmentImage: "",
-    category: "tops",
+
+  // Check for a garment preselected from the Inventory page
+  const [formData, setFormData] = useState(() => {
+    const stored = sessionStorage.getItem("preselectedGarment");
+    if (stored) {
+      sessionStorage.removeItem("preselectedGarment");
+      const parsed = JSON.parse(stored) as { imageUrl: string; category: string };
+      return {
+        modelImage: "",
+        garmentImage: parsed.imageUrl,
+        category: parsed.category,
+      };
+    }
+    return {
+      modelImage: "",
+      garmentImage: "",
+      category: "tops",
+    };
   });
   const [isCameraActive, setIsCameraActive] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertTryOnSchema, tryOns } from './schema';
+import { insertTryOnSchema, insertGarmentSchema, tryOns, garmentInventory } from './schema';
 
 // ============================================
 // SHARED ERROR SCHEMAS
@@ -52,6 +52,15 @@ export const api = {
         401: errorSchemas.unauthorized,
       },
     },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/try-ons/:id',
+      responses: {
+        200: z.object({ message: z.string() }),
+        403: errorSchemas.unauthorized,
+        404: errorSchemas.notFound,
+      },
+    },
     status: {
       method: 'GET' as const,
       path: '/api/try-ons/:id/status',
@@ -61,6 +70,35 @@ export const api = {
           resultImage: z.string().optional().nullable(),
           error: z.string().optional().nullable(),
         }),
+        404: errorSchemas.notFound,
+      },
+    },
+  },
+  inventory: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/inventory',
+      responses: {
+        200: z.array(z.custom<typeof garmentInventory.$inferSelect>()),
+        401: errorSchemas.unauthorized,
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/inventory',
+      input: insertGarmentSchema,
+      responses: {
+        201: z.custom<typeof garmentInventory.$inferSelect>(),
+        400: errorSchemas.validation,
+        401: errorSchemas.unauthorized,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/inventory/:id',
+      responses: {
+        200: z.object({ message: z.string() }),
+        403: errorSchemas.unauthorized,
         404: errorSchemas.notFound,
       },
     },
@@ -87,3 +125,4 @@ export function buildUrl(path: string, params?: Record<string, string | number>)
 // ============================================
 export type TryOnInput = z.infer<typeof api.tryOns.create.input>;
 export type TryOnResponse = z.infer<typeof api.tryOns.create.responses[201]>;
+export type GarmentInput = z.infer<typeof api.inventory.create.input>;

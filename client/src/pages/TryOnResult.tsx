@@ -1,7 +1,7 @@
 import { useRoute } from "wouter";
 import { useTryOn, useTryOnStatus } from "@/hooks/use-try-ons";
 import { Button } from "@/components/ui/button";
-import { Loader2, Download, AlertCircle, RefreshCw, ArrowLeft } from "lucide-react";
+import { Loader2, Download, AlertCircle, RefreshCw, ArrowLeft, Shirt } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
@@ -41,7 +41,7 @@ export default function TryOnResult() {
       <div className="text-center py-20">
         <h2 className="text-2xl font-bold mb-4">Try-On Not Found</h2>
         <Link href="/dashboard">
-          <Button variant="link">Return to Dashboard</Button>
+          <Button variant="ghost">Return to Dashboard</Button>
         </Link>
       </div>
     );

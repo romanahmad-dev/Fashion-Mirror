@@ -42,8 +42,10 @@ export async function registerRoutes(
   // Serve uploaded files
   app.use('/uploads', express.static('uploads'));
 
-  // Protected Routes
-  
+  // ─────────────────────────────────────────────────────────────
+  // TRY-ON ROUTES
+  // ─────────────────────────────────────────────────────────────
+
   // List Try-Ons
   app.get(api.tryOns.list.path, isAuthenticated, async (req: any, res) => {
     try {
@@ -62,7 +64,6 @@ export async function registerRoutes(
       if (!tryOn) {
         return res.status(404).json({ message: 'Try-on not found' });
       }
-      // Ensure user owns this try-on
       if (tryOn.userId !== req.user.claims.sub) {
         return res.status(403).json({ message: 'Unauthorized' });
       }
@@ -103,6 +104,23 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid input data" });
       }
       res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Delete Try-On
+  app.delete(api.tryOns.delete.path, isAuthenticated, async (req: any, res) => {
+    try {
+      const tryOn = await storage.getTryOn(Number(req.params.id));
+      if (!tryOn) {
+        return res.status(404).json({ message: 'Try-on not found' });
+      }
+      if (tryOn.userId !== req.user.claims.sub) {
+        return res.status(403).json({ message: 'Unauthorized' });
+      }
+      await storage.deleteTryOn(tryOn.id);
+      res.json({ message: 'Deleted successfully' });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete try-on" });
     }
   });
 
@@ -160,12 +178,58 @@ export async function registerRoutes(
     }
   });
 
+  // ─────────────────────────────────────────────────────────────
+  // GARMENT INVENTORY ROUTES
+  // ─────────────────────────────────────────────────────────────
+
+  // List Inventory
+  app.get(api.inventory.list.path, isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const garments = await storage.getUserGarments(userId);
+      res.json(garments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch inventory" });
+    }
+  });
+
+  // Add Garment to Inventory
+  app.post(api.inventory.create.path, isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const input = api.inventory.create.input.parse(req.body);
+      const garment = await storage.createGarment({ ...input, userId });
+      res.status(201).json(garment);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input data" });
+      }
+      res.status(500).json({ message: "Failed to add garment" });
+    }
+  });
+
+  // Delete Garment from Inventory
+  app.delete(api.inventory.delete.path, isAuthenticated, async (req: any, res) => {
+    try {
+      const garment = await storage.getGarment(Number(req.params.id));
+      if (!garment) {
+        return res.status(404).json({ message: 'Garment not found' });
+      }
+      if (garment.userId !== req.user.claims.sub) {
+        return res.status(403).json({ message: 'Unauthorized' });
+      }
+      await storage.deleteGarment(garment.id);
+      res.json({ message: 'Garment deleted successfully' });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete garment" });
+    }
+  });
+
   // File Upload Route
   app.post('/api/upload', isAuthenticated, upload.single('file'), (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
     }
-    // Return full URL for the uploaded file
     const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
     res.json({ url: fileUrl });
   });

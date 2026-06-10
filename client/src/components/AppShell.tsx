@@ -7,7 +7,7 @@ import {
   PlusCircle, 
   Shirt, 
   Menu,
-  X 
+  Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +28,7 @@ export function AppShell({ children }: AppShellProps) {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/new", label: "New Try-On", icon: PlusCircle },
+    { href: "/inventory", label: "Inventory", icon: Package },
   ];
 
   if (!isAuthenticated && location === "/") {

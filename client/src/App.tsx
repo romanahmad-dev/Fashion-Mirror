@@ -10,6 +10,7 @@ import Landing from "@/pages/Landing";
 import Dashboard from "@/pages/Dashboard";
 import NewTryOn from "@/pages/NewTryOn";
 import TryOnResult from "@/pages/TryOnResult";
+import Inventory from "@/pages/Inventory";
 
 function Router() {
   const { user, isLoading } = useAuth();
@@ -36,6 +37,9 @@ function Router() {
         </Route>
         <Route path="/try-ons/:id">
           {!user ? <Redirect to="/" /> : <TryOnResult />}
+        </Route>
+        <Route path="/inventory">
+          {!user ? <Redirect to="/" /> : <Inventory />}
         </Route>
         <Route component={NotFound} />
       </Switch>

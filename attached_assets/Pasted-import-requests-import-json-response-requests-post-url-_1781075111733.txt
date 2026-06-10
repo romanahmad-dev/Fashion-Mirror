@@ -1,0 +1,90 @@
+import requests
+import json
+
+response = requests.post(
+  url="https://openrouter.ai/api/v1/chat/completions",
+  headers={
+    "Authorization": "Bearer <OPENROUTER_API_KEY>",
+    "Content-Type": "application/json",
+  },
+  data=json.dumps({
+    "model": "black-forest-labs/flux.2-flex",
+    "messages": [
+        {
+          "role": "user",
+          "content": "Generate a beautiful sunset over mountains"
+        }
+      ],
+    "modalities": ["image"]
+  })
+)
+
+result = response.json()
+
+# The generated image will be in the assistant message
+if result.get("choices"):
+  message = result["choices"][0]["message"]
+  if message.get("images"):
+    for image in message["images"]:
+      image_url = image["image_url"]["url"]  # Base64 data URL
+      print(f"Generated image: {image_url[:50]}...")
+
+
+      curl -N https://openrouter.ai/api/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+  -d '{
+  "model": "black-forest-labs/flux.2-flex",
+  "stream": true,
+  "messages": [
+    {"role": "user", "content": "Hello"}
+  ]
+}'
+
+
+
+I already have an existing web application for AI fashion / virtual try-on.
+
+Your task is to upgrade and fix my app into a production-ready Virtual Try-On SaaS.
+
+Do NOT rebuild the project.
+
+### What I want you to do:
+
+1. Add a real Virtual Try-On feature:
+   - Use IDM-VTON (preferred) or CatVTON as core model
+   - Input: user image + clothing image
+   - Output: realistic try-on image
+
+2. Fix webcam integration (Iriun Webcam issue):
+   - Detect webcam devices properly
+   - Prefer Iriun Webcam if available
+   - Fix black screen / not detected issues
+   - Add fallback to default webcam or file upload
+
+3. Improve architecture:
+   - Clean API endpoint: /api/virtual-tryon
+   - Add modular structure (router/services)
+   - Add async processing for image generation
+
+4. Add optional enhancement layer:
+   - Use FLUX.2 Max or similar for image enhancement after try-on
+
+5. Add fallback system:
+   - If try-on fails → switch to CatVTON or file upload mode
+
+6. Ensure browser compatibility:
+   - getUserMedia working properly
+   - camera permission handling fixed
+   - device enumeration fixed
+
+### Important:
+- Do NOT break existing features
+- Do NOT recreate the project
+- Only modify and extend current code
+- Keep everything production-ready and scalable
+
+Make sure the app works end-to-end:
+User uploads or uses webcam → selects clothing → gets try-on result.
+
+

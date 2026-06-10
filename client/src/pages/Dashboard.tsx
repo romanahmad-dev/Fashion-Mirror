@@ -1,14 +1,28 @@
-import { useTryOns } from "@/hooks/use-try-ons";
+import { useState } from "react";
+import { useTryOns, useDeleteTryOn } from "@/hooks/use-try-ons";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowRight, Clock, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Plus, ArrowRight, Trash2, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import type { TryOn } from "@shared/schema";
 
 export default function Dashboard() {
   const { data: tryOns, isLoading } = useTryOns();
+  const deleteTryOn = useDeleteTryOn();
+  const [deleteTarget, setDeleteTarget] = useState<TryOn | null>(null);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -20,6 +34,13 @@ export default function Dashboard() {
         return <Badge variant="destructive" className="opacity-80">Failed</Badge>;
       default:
         return <Badge variant="secondary">Pending</Badge>;
+    }
+  };
+
+  const handleDelete = async () => {
+    if (deleteTarget) {
+      await deleteTryOn.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
     }
   };
 
@@ -39,7 +60,7 @@ export default function Dashboard() {
           <p className="text-muted-foreground mt-1">Manage your virtual try-on requests.</p>
         </div>
         <Link href="/new">
-          <Button className="rounded-full px-6">
+          <Button className="rounded-full px-6" data-testid="button-new-tryon">
             <Plus className="w-4 h-4 mr-2" />
             New Try-On
           </Button>
@@ -54,9 +75,23 @@ export default function Dashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
+              className="relative group"
+              data-testid={`card-tryon-${tryOn.id}`}
             >
+              {/* Delete button - visible on hover */}
+              <button
+                className="absolute top-3 left-3 z-10 p-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border/50 text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-all opacity-0 group-hover:opacity-100 shadow-sm"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setDeleteTarget(tryOn);
+                }}
+                data-testid={`button-delete-tryon-${tryOn.id}`}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+
               <Link href={`/try-ons/${tryOn.id}`}>
-                <Card className="group cursor-pointer hover:shadow-lg transition-all duration-300 border-border/50 overflow-hidden">
+                <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 border-border/50 overflow-hidden">
                   <div className="aspect-[4/3] relative bg-muted overflow-hidden">
                     {tryOn.resultImage ? (
                       <img 
@@ -109,6 +144,28 @@ export default function Dashboard() {
           </Link>
         </div>
       )}
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this try-on?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this try-on from your history. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive hover:bg-destructive/90"
+              data-testid="button-confirm-delete-tryon"
+            >
+              {deleteTryOn.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
