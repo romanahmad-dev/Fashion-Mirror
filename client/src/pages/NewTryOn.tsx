@@ -46,65 +46,48 @@ export default function NewTryOn() {
   const { toast } = useToast();
 
   const startCamera = async () => {
-    console.log("Starting camera sequence...");
     try {
-      // List all devices for logging purposes
       const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter(device => device.kind === 'videoinput');
-      console.log("Available video devices:", videoDevices.map(d => `${d.label} (${d.deviceId})`));
-      
-      // Preferred camera: Iriun or similar if exists
-      const preferredCamera = videoDevices.find(device => 
-        device.label.toLowerCase().includes('iriun')
+      const videoDevices = devices.filter(d => d.kind === 'videoinput');
+
+      const preferredCamera = videoDevices.find(d =>
+        d.label.toLowerCase().includes('iriun')
       );
 
       const constraints: MediaStreamConstraints = {
-        video: preferredCamera ? { 
-          deviceId: { exact: preferredCamera.deviceId },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        } : {
-          // If no preferred, use default (first available)
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: "user"
+        video: preferredCamera
+          ? { deviceId: { exact: preferredCamera.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+          : { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" }
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+      // The video element is always in the DOM — videoRef.current is never null here.
+      const video = videoRef.current!;
+      video.srcObject = stream;
+
+      // Show the camera container immediately so the user sees it loading.
+      setIsCameraActive(true);
+
+      // Play as soon as the browser has enough data.
+      const playWhenReady = async () => {
+        try {
+          await video.play();
+        } catch (e) {
+          console.error("Video play error:", e);
         }
       };
 
-      console.log("Requesting getUserMedia with constraints:", constraints);
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log("Stream obtained:", stream.id, "Active:", stream.active);
-      
-      if (videoRef.current) {
-        console.log("Video element found:", videoRef.current);
-        console.log("Assigning stream to video element. Current srcObject:", videoRef.current.srcObject);
-        videoRef.current.srcObject = stream;
-        console.log("Stream assigned to srcObject");
-        
-        // Ensure play is called and handled with logs
-        videoRef.current.onloadedmetadata = async () => {
-          console.log("Video metadata loaded. Resolution:", videoRef.current?.videoWidth, "x", videoRef.current?.videoHeight);
-          try {
-            await videoRef.current?.play();
-            console.log("Video playing: playback started successfully");
-            setIsCameraActive(true);
-          } catch (playErr) {
-            console.error("Video play failed:", playErr);
-          }
-        };
-
-        // Fallback for metadata already loaded or browsers that don't fire it reliably
-        if (videoRef.current.readyState >= 2) {
-          console.log("Video already ready, calling play directly");
-          await videoRef.current.play();
-          setIsCameraActive(true);
-        }
+      if (video.readyState >= 2) {
+        playWhenReady();
+      } else {
+        video.onloadedmetadata = playWhenReady;
       }
     } catch (err) {
-      console.error("Webcam Fatal Error:", err);
+      console.error("Camera error:", err);
       toast({
         title: "Camera Access Failed",
-        description: "We couldn't start your camera. Please ensure permissions are granted and the device is not in use.",
+        description: "Please grant camera permission and make sure no other app is using it.",
         variant: "destructive",
       });
     }
@@ -290,50 +273,64 @@ export default function NewTryOn() {
                     </div>
                   </div>
                   <div className="relative">
-                    {isCameraActive ? (
-                      <div className="relative aspect-[3/4] bg-black rounded-2xl overflow-hidden border-2 border-primary group flex items-center justify-center">
-                        <video 
-                          ref={videoRef} 
-                          autoPlay 
-                          playsInline 
-                          muted 
-                          className="absolute inset-0 w-full h-full object-cover z-0"
-                          onCanPlay={() => console.log("Video can play")}
-                          style={{ display: 'block', opacity: 1 }}
-                        />
-                        
-                        {/* Enhancement: Live Indicator */}
-                        <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 z-10">
-                          <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                          <span className="text-[10px] font-bold text-white uppercase tracking-widest">Live</span>
-                        </div>
+                    {/* 
+                      Video element is ALWAYS in the DOM so videoRef is always valid.
+                      We show/hide with CSS — never conditionally unmount it.
+                    */}
+                    <div
+                      className="relative aspect-[3/4] bg-black rounded-2xl overflow-hidden border-2 border-primary group"
+                      style={{ display: isCameraActive ? 'block' : 'none' }}
+                    >
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          display: 'block',
+                        }}
+                      />
 
-                        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4 transition-transform duration-300 group-hover:scale-105 z-10">
-                          <Button 
-                            size="icon" 
-                            className="h-14 w-14 rounded-full shadow-2xl bg-white hover:bg-white/90 border-4 border-primary/20" 
-                            onClick={capturePhoto}
-                            data-testid="button-capture"
-                          >
-                            <div className="h-10 w-10 rounded-full border-4 border-primary animate-in zoom-in-50 duration-300" />
-                          </Button>
-                          <Button 
-                            variant="destructive" 
-                            size="icon" 
-                            className="h-14 w-14 rounded-full shadow-2xl" 
-                            onClick={stopCamera}
-                            data-testid="button-stop-camera"
-                          >
-                            <X className="w-6 h-6" />
-                          </Button>
-                        </div>
+                      {/* Live indicator */}
+                      <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 z-10 pointer-events-none">
+                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                        <span className="text-[10px] font-bold text-white uppercase tracking-widest">Live</span>
                       </div>
-                    ) : formData.modelImage ? (
+
+                      {/* Capture / Stop controls */}
+                      <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4 z-10">
+                        <Button
+                          size="icon"
+                          className="h-14 w-14 rounded-full shadow-2xl bg-white hover:bg-white/90 border-4 border-primary/20"
+                          onClick={capturePhoto}
+                          data-testid="button-capture"
+                        >
+                          <div className="h-10 w-10 rounded-full border-4 border-primary" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="h-14 w-14 rounded-full shadow-2xl"
+                          onClick={stopCamera}
+                          data-testid="button-stop-camera"
+                        >
+                          <X className="w-6 h-6" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Captured photo preview */}
+                    {!isCameraActive && formData.modelImage && (
                       <div className="relative aspect-[3/4] bg-muted rounded-2xl overflow-hidden border-2 border-primary">
                         <img src={formData.modelImage} alt="Model" className="w-full h-full object-cover" />
-                        <Button 
-                          variant="secondary" 
-                          size="sm" 
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           className="absolute top-2 right-2"
                           onClick={() => setFormData({ ...formData, modelImage: "" })}
                         >
@@ -341,13 +338,17 @@ export default function NewTryOn() {
                           Reset
                         </Button>
                       </div>
-                    ) : (
-                      <FileUpload 
+                    )}
+
+                    {/* File drop zone */}
+                    {!isCameraActive && !formData.modelImage && (
+                      <FileUpload
                         label="Drop model image here"
                         value={formData.modelImage}
                         onFileSelect={(base64) => setFormData({ ...formData, modelImage: base64 })}
                       />
                     )}
+
                     <canvas ref={canvasRef} className="hidden" />
                   </div>
                 </div>
