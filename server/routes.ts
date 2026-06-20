@@ -85,20 +85,24 @@ export async function registerRoutes(
         status: 'pending' as const
       });
 
-      try {
-        const data = await AiService.runTryOn({
-          modelImage: input.modelImage,
-          garmentImage: input.garmentImage,
-          category: input.category || "tops"
-        });
-        await storage.updateTryOnPredictionId(tryOn.id, data.id);
-        await storage.updateTryOnStatus(tryOn.id, 'processing');
-      } catch (apiError: any) {
-        console.error("AI Generation Error:", apiError);
-        await storage.updateTryOnStatus(tryOn.id, 'failed', undefined, apiError.message);
-      }
-
+      // Respond immediately — AI runs in the background
       res.status(201).json(tryOn);
+
+      // Background: call OpenRouter and update DB when done
+      setImmediate(async () => {
+        try {
+          await storage.updateTryOnStatus(tryOn.id, 'processing');
+          const data = await AiService.runTryOn({
+            modelImage: input.modelImage,
+            garmentImage: input.garmentImage,
+            category: input.category || "tops"
+          });
+          await storage.updateTryOnStatus(tryOn.id, 'completed', data.resultImage);
+        } catch (apiError: any) {
+          console.error("AI Generation Error:", apiError);
+          await storage.updateTryOnStatus(tryOn.id, 'failed', undefined, apiError.message);
+        }
+      });
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid input data" });
@@ -124,7 +128,7 @@ export async function registerRoutes(
     }
   });
 
-  // Check Status Endpoint (Proxy to FASHN API)
+  // Check Status Endpoint — reads from DB (OpenRouter is synchronous, no external polling needed)
   app.get(api.tryOns.status.path, isAuthenticated, async (req: any, res) => {
     try {
       const tryOnId = Number(req.params.id);
@@ -134,44 +138,15 @@ export async function registerRoutes(
         return res.status(404).json({ message: 'Try-on not found' });
       }
 
-      // If already completed or failed, return stored result
-      if (tryOn.status === 'completed' || tryOn.status === 'failed') {
-        return res.json({
-          status: tryOn.status,
-          resultImage: tryOn.resultImage,
-          error: tryOn.error
-        });
+      if (tryOn.userId !== req.user.claims.sub) {
+        return res.status(403).json({ message: 'Unauthorized' });
       }
 
-      // If missing prediction ID but not failed/completed, something is wrong
-      if (!tryOn.predictionId) {
-        return res.json({ status: 'failed', error: 'Missing prediction ID' });
-      }
-
-      // Poll FASHN API via Service
-      try {
-        const data = await AiService.checkStatus(tryOn.predictionId);
-        
-        // Update DB if status changed
-        if (data.status === 'completed' || data.status === 'failed') {
-          const resultImage = data.output && data.output.length > 0 ? data.output[0] : undefined;
-          const error = data.error ? data.error.message : undefined;
-          
-          await storage.updateTryOnStatus(tryOnId, data.status, resultImage, error);
-          
-          return res.json({
-            status: data.status,
-            resultImage,
-            error
-          });
-        }
-
-        // Still processing
-        return res.json({ status: data.status });
-      } catch (aiError: any) {
-        console.error("AI Status Check Error:", aiError);
-        return res.status(502).json({ message: "AI provider error" });
-      }
+      return res.json({
+        status: tryOn.status,
+        resultImage: tryOn.resultImage ?? undefined,
+        error: tryOn.error ?? undefined,
+      });
     } catch (error) {
       console.error("Status check error:", error);
       res.status(500).json({ message: "Failed to check status" });
