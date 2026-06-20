@@ -85,6 +85,35 @@ export function useCreateTryOn() {
   });
 }
 
+export function useRetryTryOn() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/try-ons/${id}/retry`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (res.status === 401) { redirectToLogin(toast); throw new Error('Unauthorized'); }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to retry try-on');
+      }
+      return res.json();
+    },
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: [api.tryOns.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.tryOns.get.path, id] });
+      queryClient.invalidateQueries({ queryKey: [api.tryOns.status.path, id] });
+      toast({ title: 'Retrying', description: 'Generation has been restarted.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
 export function useDeleteTryOn() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

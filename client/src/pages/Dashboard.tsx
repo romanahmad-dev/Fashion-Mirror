@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useTryOns, useDeleteTryOn } from "@/hooks/use-try-ons";
+import { useTryOns, useDeleteTryOn, useRetryTryOn } from "@/hooks/use-try-ons";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowRight, Trash2, Loader2 } from "lucide-react";
+import { Plus, ArrowRight, Trash2, Loader2, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ import type { TryOn } from "@shared/schema";
 export default function Dashboard() {
   const { data: tryOns, isLoading } = useTryOns();
   const deleteTryOn = useDeleteTryOn();
+  const retryTryOn = useRetryTryOn();
   const [deleteTarget, setDeleteTarget] = useState<TryOn | null>(null);
 
   const getStatusBadge = (status: string) => {
@@ -89,6 +90,26 @@ export default function Dashboard() {
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
+
+              {/* Retry button — only shown on failed cards */}
+              {tryOn.status === "failed" && (
+                <button
+                  className="absolute top-3 right-12 z-10 p-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border/50 text-muted-foreground hover:text-primary hover:border-primary/40 transition-all opacity-0 group-hover:opacity-100 shadow-sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    retryTryOn.mutate(tryOn.id);
+                  }}
+                  disabled={retryTryOn.isPending}
+                  title="Retry generation"
+                  data-testid={`button-retry-tryon-${tryOn.id}`}
+                >
+                  {retryTryOn.isPending ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              )}
 
               <Link href={`/try-ons/${tryOn.id}`}>
                 <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 border-border/50 overflow-hidden">

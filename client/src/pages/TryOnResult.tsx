@@ -1,5 +1,5 @@
 import { useRoute } from "wouter";
-import { useTryOn, useTryOnStatus } from "@/hooks/use-try-ons";
+import { useTryOn, useTryOnStatus, useRetryTryOn } from "@/hooks/use-try-ons";
 import { Button } from "@/components/ui/button";
 import { Loader2, Download, AlertCircle, RefreshCw, ArrowLeft, Shirt } from "lucide-react";
 import { Link } from "wouter";
@@ -15,6 +15,7 @@ export default function TryOnResult() {
 
   const { data: tryOn, isLoading: isLoadingDetails } = useTryOn(id);
   const { data: statusData } = useTryOnStatus(id, tryOn?.status);
+  const retryTryOn = useRetryTryOn();
 
   // Merge status update if available
   const displayStatus = statusData?.status || tryOn?.status || "pending";
@@ -113,9 +114,21 @@ export default function TryOnResult() {
                   <AlertCircle className="w-6 h-6" />
                 </div>
                 <h4 className="font-bold text-red-900 mb-2">Generation Failed</h4>
-                <p className="text-red-700/80 text-sm max-w-xs mx-auto">
-                  {displayError || "Something went wrong during the generation process. Please try again with different images."}
+                <p className="text-red-700/80 text-sm max-w-xs mx-auto mb-6">
+                  {displayError || "Something went wrong during the generation process."}
                 </p>
+                <Button
+                  onClick={() => retryTryOn.mutate(id)}
+                  disabled={retryTryOn.isPending}
+                  className="rounded-full px-6"
+                  data-testid="button-retry-result"
+                >
+                  {retryTryOn.isPending ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Retrying...</>
+                  ) : (
+                    <><RefreshCw className="w-4 h-4 mr-2" /> Retry Generation</>
+                  )}
+                </Button>
               </div>
             ) : (
               <div className="text-center p-8 space-y-6">

@@ -128,6 +128,42 @@ export async function registerRoutes(
     }
   });
 
+  // Retry a Failed Try-On
+  app.post('/api/try-ons/:id/retry', isAuthenticated, async (req: any, res) => {
+    try {
+      const tryOnId = Number(req.params.id);
+      const tryOn = await storage.getTryOn(tryOnId);
+
+      if (!tryOn) return res.status(404).json({ message: 'Try-on not found' });
+      if (tryOn.userId !== req.user.claims.sub) return res.status(403).json({ message: 'Unauthorized' });
+      if (tryOn.status !== 'failed') {
+        return res.status(409).json({ message: 'Only failed try-ons can be retried' });
+      }
+
+      // Reset status and clear previous error
+      await storage.updateTryOnStatus(tryOnId, 'pending');
+      res.json({ message: 'Retry started' });
+
+      // Background: re-run the AI generation
+      setImmediate(async () => {
+        try {
+          await storage.updateTryOnStatus(tryOnId, 'processing');
+          const data = await AiService.runTryOn({
+            modelImage: tryOn.modelImage,
+            garmentImage: tryOn.garmentImage,
+            category: tryOn.category || 'tops',
+          });
+          await storage.updateTryOnStatus(tryOnId, 'completed', data.resultImage);
+        } catch (apiError: any) {
+          console.error('AI Retry Error:', apiError);
+          await storage.updateTryOnStatus(tryOnId, 'failed', undefined, apiError.message);
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to retry try-on' });
+    }
+  });
+
   // Check Status Endpoint — reads from DB (OpenRouter is synchronous, no external polling needed)
   app.get(api.tryOns.status.path, isAuthenticated, async (req: any, res) => {
     try {

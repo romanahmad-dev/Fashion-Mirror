@@ -73,6 +73,16 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
+    retry: {
+      method: 'POST' as const,
+      path: '/api/try-ons/:id/retry',
+      responses: {
+        200: z.object({ message: z.string() }),
+        403: errorSchemas.unauthorized,
+        404: errorSchemas.notFound,
+        409: z.object({ message: z.string() }),
+      },
+    },
   },
   inventory: {
     list: {
