@@ -1,1 +1,25 @@
+cat > .gitignore << 'EOF'
+# Replit
+.replit
+.replitignore
+replit.md
+attached_assets/
+.local/
+.cache/
+.agents/
 
+# Environment
+.env
+.env.local
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+venv/
+
+# Build
+dist/
+build/
+out/
+EOF
