@@ -16,12 +16,21 @@ Badges: <!-- Replace placeholders with actual badges (build, license, version, c
 - [Features](#features)
 - [Motivation & Objectives (FYP)](#motivation--objectives-fyp)
 - [Architecture & Components](#architecture--components)
+  - [Conceptual Architecture Diagram](#conceptual-architecture-diagram)
+  - [Component Responsibilities](#component-responsibilities)
+- [System Flows & Sequence Diagrams](#system-flows--sequence-diagrams)
+  - [Data Flow](#data-flow)
+  - [Sequence: Live Try-on Use Case](#sequence-live-try-on-use-case)
+- [Use Cases](#use-cases)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
   - [Running Locally](#running-locally)
   - [Docker](#docker)
-- [Usage](#usage)
+- [Testing & Quality Assurance](#testing--quality-assurance)
+  - [Automated Tests](#automated-tests)
+  - [Performance & Scalability Testing](#performance--scalability-testing)
+  - [User Studies & Usability Testing](#user-studies--usability-testing)
 - [Dataset & Model Training](#dataset--model-training)
 - [Evaluation & Results](#evaluation--results)
 - [Design Decisions](#design-decisions)
@@ -32,6 +41,7 @@ Badges: <!-- Replace placeholders with actual badges (build, license, version, c
 - [Acknowledgements & Academic Details](#acknowledgements--academic-details)
 - [License](#license)
 - [Contact](#contact)
+- [References](#references)
 
 ---
 
@@ -98,13 +108,102 @@ High-level components:
 - Data Pipeline: dataset ingestion, augmentation scripts, annotation format converters, and training utilities.
 - DevOps: Dockerfiles, Compose manifests, and CI workflows for automated testing and release.
 
-Component interactions:
-- The frontend accesses local camera or uploaded images and runs lightweight inference in-browser where possible (using WebAssembly or WebGL-based runtimes).
-- For heavier inference, the frontend communicates with the backend through authenticated API endpoints.
-- The analytics module aggregates anonymized usage metrics; raw images remain client-side by default unless users opt to upload for research.
+### Conceptual Architecture Diagram
 
-Diagram (conceptual):
-Camera / Image Input -> Preprocessing -> Inference Engine -> Post-processing -> Virtual Mirror Renderer -> User Interaction & Analytics
+The repository supports documentation images and mermaid diagrams. Include the following mermaid block in the README for a quick conceptual view (GitHub supports mermaid diagrams in Markdown):
+
+```mermaid
+flowchart LR
+  A[Camera / Upload] --> B[Preprocessing]
+  B --> C[Inference Engine]
+  C --> D[Post-processing / Rendering]
+  D --> E[Virtual Mirror UI]
+  E --> F[User Interaction]
+  C --> G[Analytics (anonymized)]
+  style A fill:#f9f,stroke:#333,stroke-width:1px
+```
+
+(If mermaid is not rendered in your environment, we also provide a PNG/SVG in /docs/diagrams when you add images.)
+
+### Component Responsibilities
+- Frontend
+  - Capture camera frames or load images
+  - Run on-device inference (where supported) or call backend endpoints
+  - Render virtual try-on layers with correct occlusion and alignment
+  - Manage user preferences and local storage (privacy-first)
+- Backend
+  - Provide heavier inference endpoints and model lifecycle management
+  - Host analytics ingestion (aggregated only)
+  - Serve static assets and model binaries when needed
+- Inference Engine
+  - Wraps model runtimes (ONNX/TF.js/PyTorch) with consistent pre/post-processing
+  - Exposes lightweight APIs for detection, segmentation, and attribute prediction
+- Data Pipeline
+  - Converts annotations to COCO-style, runs augmentations, and prepares TF/PyTorch datasets
+
+---
+
+## System Flows & Sequence Diagrams
+
+### Data Flow
+
+A high-level data flow shows how data moves through the system:
+
+```mermaid
+flowchart TD
+  subgraph Client
+    camera(Camera)
+    ui(UI)
+  end
+  camera --> ui
+  ui --> preprocess[Preprocessing / Resize]
+  preprocess --> infer[Inference (ONNX/TF.js)]
+  infer --> post[Post-processing (nms, mask cleanup)]
+  post --> render[Render on Canvas]
+  render --> user[User Interaction]
+  infer --> analytics[Send anonymized metrics]
+```
+
+### Sequence: Live Try-on Use Case
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant F as Frontend
+  participant I as Inference
+  participant B as Backend
+
+  U->>F: Allow camera, open Try-on
+  F->>I: Send frame for inference (local or via B)
+  I-->>F: Return detections and masks
+  F->>F: Post-process & align garments
+  F-->>U: Render virtual outfit
+  F->>B: (opt-in) send anonymized usage metrics
+```
+
+---
+
+## Use Cases
+
+Primary actors: End User, Researcher/Developer, Administrator.
+
+1. Live Try-on (End User)
+   - Preconditions: User has a device with a camera and a modern browser.
+   - Flow: Allow camera -> select garments -> system detects garments -> virtual try-on renders -> user captures snapshot.
+   - Postconditions: Snapshot saved locally or shared; analytics recorded (anonymized).
+
+2. Offline Photo Try-on (End User)
+   - Preconditions: User uploads a photo.
+   - Flow: Upload -> preprocessing -> inference -> render -> user adjusts overlay.
+
+3. Model Training & Evaluation (Researcher)
+   - Preconditions: Prepared training dataset and configuration.
+   - Flow: Run prepare-dataset -> run training -> export checkpoints -> run evaluation scripts.
+
+4. System Administration (Administrator)
+   - Flow: Deploy containers -> monitor CI/CD -> rotate model artifacts -> manage access.
+
+Use case diagrams can be added to /docs/diagrams/usecases.png (placeholder) or represented as mermaid usecase diagrams when required.
 
 ---
 
@@ -157,21 +256,40 @@ This launches the backend and a static frontend container. Check docker-compose.
 
 ---
 
-## Usage
+## Testing & Quality Assurance
 
-- Open the web UI (default: http://localhost:3000)
-- Allow camera permissions to enable the live mirror
-- Use the "Try On" controls to toggle garments and simulate outfits
-- Use the "Recommendations" panel to get style suggestions
-- Export snapshots via the camera icon; analytics are available in the "Insights" tab
+A robust QA plan is included to support the FYP evaluation criteria: unit tests, integration tests, end-to-end tests, performance benchmarks, and user studies.
 
-Command-line utilities:
-- Prepare dataset:
-  npm run prepare-dataset -- --input ./raw --output ./processed
-- Train model:
-  npm run train -- --config ./configs/train.yaml
-- Evaluate model:
-  npm run evaluate -- --model ./checkpoints/latest.pth --dataset ./processed/test
+### Automated Tests
+
+- Unit tests (Jest / Vitest): test utilities, model wrappers, and UI components.
+  - Run: npm run test:unit
+- Integration tests: API endpoints, model inference wrapper integration.
+  - Run: npm run test:integration
+- End-to-end tests (Playwright / Cypress): simulate user workflows (try-on, upload, snapshot, settings).
+  - Run: npm run test:e2e
+- Static analysis: ESLint and TypeScript type checks
+  - Run: npm run lint && npm run typecheck
+
+Test coverage and badges should be added to the README when CI is configured.
+
+### Performance & Scalability Testing
+
+- Latency benchmarking: measure inference time per frame (ms) on target hardware (desktop, laptop, mobile CPU).
+- Throughput testing: for server-side inference, measure requests/sec and resource utilization under synthetic load (wrk, k6).
+- Memory profiling: track memory usage in browser and backend processes.
+
+Suggested benchmark commands (examples):
+- Browser inference latency: run a test harness that captures N frames and records per-frame latency (script in /bench)
+- Server load: k6 run --vus 50 --duration 1m loadtest/infer.js
+
+### User Studies & Usability Testing
+
+- Prepare IRB-approved materials: consent forms, participant information sheet, demographic questionnaire.
+- Conduct tasks: ask participants to complete typical flows (try-on, adjust overlay, save snapshot) and collect SUS (System Usability Scale) scores.
+- Qualitative feedback: record sessions (with consent), transcribe, and code for recurring themes.
+
+Record and summarize findings in the FYP write-up and include anonymized logs where appropriate.
 
 ---
 
