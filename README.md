@@ -277,9 +277,11 @@ Planned improvements and research directions:
 
 ## Acknowledgements & Academic Details
 
-- Student: [Your Name] (replace with project owner)
-- Program: Bachelor of Science / Bachelor of Engineering — Computer Science, [University Name]
-- Supervisor: [Supervisor Name], [Department], [University] (please add)
+- Student: Roman Ahmad Khan
+- Program: Bachelor of Science / Bachelor of Engineering — Computer Science
+- University: Government College University Faisalabad (GCUF)
+- Supervisor: Dr. Muhammad Umer Sarwar — https://profiles.gcuf.edu.pk/profile/drmuhammadumersarwar
+- Group members: M. Danish, Zakir Hussain
 - Examination committee: [Add members if required]
 
 This project was carried out as part of the requirements for the Final Year Project (FYP). All research involving human participants was conducted under the relevant institutional review board (IRB) approvals (include approval ID here).
@@ -296,6 +298,7 @@ This project is licensed under the MIT License. See LICENSE file for details.
 
 For questions, feedback, or collaboration:
 - Repository: https://github.com/romanahmad-dev/Fashion-Mirror
+- Student: Roman Ahmad Khan — https://github.com/romanahmad-dev
 - Email: your.email@university.edu (replace with preferred contact)
 
 ---
